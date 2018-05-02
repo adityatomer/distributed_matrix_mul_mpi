@@ -2,7 +2,7 @@
 #include<cstdio>
 #include<vector>
 #include<mpi.h>
-#include<cAh>
+#include<cmath>
 #define mod 10
 using namespace std;
 typedef std::vector<std::vector<int> > Matrix;
@@ -65,7 +65,7 @@ void print(Matrix A){
 	}
 	cout<<"************\n";
 }
-void print(int rank, std:string stg, int **A, int n){
+void print(int rank, std::string stg, int **A, int n){
         cout<<"print called with A(array) size: "<<n<<endl;
         for(int i=0;i<n;++i){
                 for(int j=0;j<n;++j){
@@ -105,19 +105,19 @@ int malloc2dint(int ***array, int n, int m) {
     return 0;
 }
 
-void getMul_IKJ(LL **C,LL **A, LL **B, int myrank){
-	print(myrank, "mat_A",A,blocksize);
-	print(myrank, "mat_B",B,blocksize);
+void performMatMul(int **C,int **A, int **B, int myrank, int n){
+	print(myrank, "mat_A",A,n);
+	print(myrank, "mat_B",B,n);
 	
 
 	for(int i=0;i<n;++i){
 		for(int k=0;k<n;++k){
 			for(int j=0;j<n;++j){
-				z[i][j]+=x[i][k]*y[k][j];
+				C[i][j]+=A[i][k]*B[k][j];
 			}
 		}
 	}
-	print(myrank, "mat_C",C,blocksize);
+	print(myrank, "mat_C",C, n);
 }
 int main(int argc, char *argv[]){
 	seedRandomNumber();
@@ -210,13 +210,12 @@ int main(int argc, char *argv[]){
 	MPI_Scatterv(globalptr_C, sendcount, displaycount, smallMatType, &(smallMat_C[0][0]),
                  world_size, MPI_INT,0, MPI_COMM_WORLD);
 	
-	performMatMul(&C,&A,&B);
 
 	for (int p=0; p<world_size; p++) {
 		MPI_Barrier(MPI_COMM_WORLD);
 	}
 
-	getMul_IKJ(C,A, B, myrank);
+	performMatMul(smallMat_C,smallMat_A, smallMat_B, myrank,blocksize);
 	
 
 
