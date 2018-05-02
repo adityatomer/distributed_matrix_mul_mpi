@@ -104,6 +104,21 @@ int malloc2dint(int ***array, int n, int m) {
 
     return 0;
 }
+
+void getMul_IKJ(LL **C,LL **A, LL **B, int myrank){
+	print(myrank, "mat_A",A,blocksize);
+	print(myrank, "mat_B",B,blocksize);
+	
+
+	for(int i=0;i<n;++i){
+		for(int k=0;k<n;++k){
+			for(int j=0;j<n;++j){
+				z[i][j]+=x[i][k]*y[k][j];
+			}
+		}
+	}
+	print(myrank, "mat_C",C,blocksize);
+}
 int main(int argc, char *argv[]){
 	seedRandomNumber();
 
@@ -195,14 +210,21 @@ int main(int argc, char *argv[]){
 	MPI_Scatterv(globalptr_C, sendcount, displaycount, smallMatType, &(smallMat_C[0][0]),
                  world_size, MPI_INT,0, MPI_COMM_WORLD);
 	
+	performMatMul(&C,&A,&B);
+
 	for (int p=0; p<world_size; p++) {
 		MPI_Barrier(MPI_COMM_WORLD);
 	}
+
+	getMul_IKJ(C,A, B, myrank);
+	
+
+
 	MPI_Type_free(&smallMatType);
 	cout<<"-----------------\n";
-	print(myrank, "mat_A",smallMat_A,blocksize);
-	print(myrank, "mat_B",smallMat_B,blocksize);
-	print(myrank, "mat_C",smallMat_C,blocksize);
+	// print(myrank, "mat_A",smallMat_A,blocksize);
+	// print(myrank, "mat_B",smallMat_B,blocksize);
+	// print(myrank, "mat_C",smallMat_C,blocksize);
 
 	
 
