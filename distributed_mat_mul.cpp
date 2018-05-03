@@ -66,7 +66,7 @@ void print(Matrix A){
 	cout<<"************\n";
 }
 void print(int rank, std::string stg, int **A, int n){
-        cout<<"print called with A(array) size: "<<n<<endl;
+        cout<<"\nprint called with (array) size: "<<n<<endl;
         for(int i=0;i<n;++i){
                 for(int j=0;j<n;++j){
                         cout<<stg<<"_"<<rank<<"_"<<A[i][j]<<" ";
@@ -106,19 +106,39 @@ int malloc2dint(int ***array, int n, int m) {
 }
 
 void performMatMul(int **C,int **A, int **B, int myrank, int n){
-	print(myrank, "mat_A",A,n);
-	print(myrank, "mat_B",B,n);
+	//print(myrank, "mat_A",A,n);
+	//print(myrank, "mat_B",B,n);
 	
-
+	/*
 	for(int i=0;i<n;++i){
-		for(int k=0;k<n;++k){
-			for(int j=0;j<n;++j){
+		for(int j=0;j<n;++j){
+			for(int k=0;k<n;++k){
 				C[i][j]+=A[i][k]*B[k][j];
 			}
 		}
-	}
-	print(myrank, "mat_C",C, n);
+	}*/
+	for (int i = 0; i < n; i++)
+    	{
+        	for (int j = 0; j < n; j++)
+        	{
+            		C[i][j] = 0;
+            		for (int k = 0; k < n; k++)
+                		C[i][j] += A[i][k]*B[k][j];
+        	}
+    	}	
+	//print(myrank, "mat_C",C, n);
 }
+
+int free2dchar(int ***array) {
+    /* free the memory - the first element of the array is at the start */
+    free(&((*array)[0][0]));
+
+    /* free the pointers into the memory */
+    free(*array);
+
+    return 0;
+}
+
 int main(int argc, char *argv[]){
 	seedRandomNumber();
 
@@ -128,7 +148,7 @@ int main(int argc, char *argv[]){
 	
 	MPI_Init(&argc,&argv);
 	MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-    MPI_Comm_rank(MPI_COMM_WORLD, &myrank);	
+    	MPI_Comm_rank(MPI_COMM_WORLD, &myrank);	
 	
 	int blockcount = sqrt(world_size);
 	int blocksize  = n/blockcount;
@@ -185,23 +205,23 @@ int main(int argc, char *argv[]){
 	int *globalptr_B=NULL;
 	int *globalptr_C=NULL;
 
-    if(myrank==0){
-    	globalptr_A=&(A[0][0]);
-    	globalptr_B=&(B[0][0]);
-    	globalptr_C=&(C[0][0]);
+    	if(myrank==0){
+    		globalptr_A=&(A[0][0]);
+    		globalptr_B=&(B[0][0]);
+    		globalptr_C=&(C[0][0]);
 		int cnt=0;
 		for(int i=0; i<blockcount; ++i){
 			for(int j=0; j<blockcount; ++j){
 				sendcount[cnt]=1;
 				displaycount[cnt++]= i * blockcount * blocksize + j;
-
 			}
 		}
+		/*
 		for(int i=0; i<cnt; ++i){
 			cout<<"displaycount: "<<displaycount[i]<<"\n";
 		}
+		*/
 	}
-
 
 	MPI_Scatterv(globalptr_A, sendcount, displaycount, smallMatType, &(smallMat_A[0][0]),
                  world_size, MPI_INT,0, MPI_COMM_WORLD);
@@ -209,23 +229,33 @@ int main(int argc, char *argv[]){
                  world_size, MPI_INT,0, MPI_COMM_WORLD);
 	MPI_Scatterv(globalptr_C, sendcount, displaycount, smallMatType, &(smallMat_C[0][0]),
                  world_size, MPI_INT,0, MPI_COMM_WORLD);
-	
 
 	for (int p=0; p<world_size; p++) {
 		MPI_Barrier(MPI_COMM_WORLD);
 	}
 
 	performMatMul(smallMat_C,smallMat_A, smallMat_B, myrank,blocksize);
-	
+	MPI_Gatherv(&(smallMat_C[0][0]), blocksize*blocksize,  MPI_INT,
+                 globalptr_C, sendcount, displaycount, smallMatType,
+                 0, MPI_COMM_WORLD);
 
-
+		
+	free2dchar(&smallMat_A);
+	free2dchar(&smallMat_B);
+	free2dchar(&smallMat_C);
+	if(myrank==0){
+		for (int i=0; i<n; i++) {
+			for (int j=0; j<n; j++){	
+				cout<<C[i][j]<<" ";
+			}
+			cout<<"\n";
+		}
+		free2dchar(&A);
+		free2dchar(&B);
+		free2dchar(&C);
+	}		
 	MPI_Type_free(&smallMatType);
-	cout<<"-----------------\n";
-	// print(myrank, "mat_A",smallMat_A,blocksize);
-	// print(myrank, "mat_B",smallMat_B,blocksize);
-	// print(myrank, "mat_C",smallMat_C,blocksize);
-
-	
+	MPI_Finalize();	
 
 	return 0;
 }
