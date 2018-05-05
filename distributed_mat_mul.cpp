@@ -131,13 +131,13 @@ void mm_rotate_A_rotate_B(int **c, int **a, int **b, int n, int myrank, int proc
 	int dest_A_rank=sqrtP*dest_A_row+dest_A_col;
 
 	int src_A_row=row;
-        int src_A_col=(-sqrtP+col+row)%sqrtP;
-        int src_A_rank=((myrank+row) % sqrtP) + (row*sqrtP);
-	
+	int src_A_col=(-sqrtP+col+row)%sqrtP;
+	int src_A_rank=((myrank+row) % sqrtP) + (row*sqrtP);
+
 	int dest_B_row=(sqrtP+col-row)%sqrtP;
-        int dest_B_col=col;
-        int dest_B_rank=sqrtP*((sqrtP+row-col)%sqrtP)+col;
-        int src_B_rank= sqrtP*((row+col)%sqrtP)+col;
+	int dest_B_col=col;
+	int dest_B_rank=sqrtP*((sqrtP+row-col)%sqrtP)+col;
+	int src_B_rank= sqrtP*((row+col)%sqrtP)+col;
 
 	MPI_Sendrecv_replace(&(a[0][0]),blocksize*blocksize, MPI_INT,dest_A_rank,tag,src_A_rank,tag,comm,&status);
 	MPI_Sendrecv_replace(&(b[0][0]),blocksize*blocksize, MPI_INT,dest_B_rank,tag,src_B_rank,tag,comm,&status);
