@@ -133,46 +133,79 @@ int free2dchar(int ***array) {
     return 0;
 }
 
-void mm_rotate_A_rotate_B(int **c, int **a, int **b, int n, int myrank, int processor, int blocksize, MPI_Datatype smallMatType){
-	int **newA, **newB;
-	malloc2dint(&newA, blocksize, blocksize);
-	malloc2dint(&newB, blocksize, blocksize);
+void mm_rotate_A_rotate_B(int **c, int **a, int **b, int n, int myrank, int processor, int blocksize, MPI_Datatype smallMatType,MPI_Comm comm){
 	MPI_Status status;
+	int tag=123456;
+	int sqrtP=sqrt(processor);
 
-	for(int i=0;i<n;++i){
-		for(int j=0;j<n;++j){
-			int sqrtP=sqrt(processor);
-			
-			int send_A_j = (sqrtP+j-i)%sqrtP;
-			int send_A_newrank = n*i+newcol;
-			int recvd_new_A_j_from = (sqrtP+i-j)%sqrtP;
-			int recvd_new_A_rank = n*i+recvd_new_A_j_from;
+	int row=myrank/sqrtP;
+	int col=myrank%sqrtP;
 
-			int send_B_i=(sqrtP+i-j)%sqrtP;
-			int send_B_newrank=n*newi_B+j;
-			int recvd_new_B_i_from = (sqrtP-i+j)%sqrtP;
-			int recvd_new_B_rank = n*recvd_new_B_i_from+j;
+	int dest_A_row=row;
+	int dest_A_col=(sqrtP+col-row)%sqrtP;
+	int dest_A_rank=sqrtP*dest_A_row+dest_A_col;
 
-			// int MPI_Sendrecv(const void *sendbuf, int sendcount, MPI_Datatype sendtype,
-   //              int dest, int sendtag, void *recvbuf, int recvcount, MPI_Datatype recvtype,
-   //              int source, int recvtag, MPI_Comm comm, MPI_Status *status)
+	int src_A_row=row;
+        int src_A_col=(-sqrtP+col+row)%sqrtP;
+        int src_A_rank=((myrank+row) % sqrtP) + (row*sqrtP);
+	///////////////
+	int dest_B_row=(sqrtP+col-row)%sqrtP;
+        int dest_B_col=col;
+        int dest_B_rank=sqrtP*((sqrtP+row-col)%sqrtP)+col;
 
-			MPI_Sendrecv(&(a[0][0]), blocksize*blocksize, smallMatType, send_A_j, 
-				0, myrank, &(newA[0][0]), blocksize*blocksize, smallMatType, 
-				recvd_new_A_rank, recvd_new_A_rank, MPI_COMM_WORLD, &status);
-		}
-	}
+        int src_B_rank= sqrtP*((row+col)%sqrtP)+col;
+/*
+	int MPI_Sendrecv_replace(void *buf, int count, MPI_Datatype datatype, 
+       int dest, int sendtag, int source, int recvtag,
+       MPI_Comm comm, MPI_Status *status)
+
+*/			
+	if(myrank==3){
+                cout<<"mm_rotate_A_rotate_B BEFORE A => \n";
+                for(int i=0;i<blocksize;++i){
+                        for(int j=0;j<blocksize;++j){
+                                cout<<b[i][j]<<" ";
+                        }
+                        cout<<"\n";
+                }
+		cout<<"\n";
+		cout<<"row: "<<row<<" col: "<<col<<" "<<" dest: "<<dest_A_rank<<" "<<" src_A: "<<src_A_rank<<endl;
+        }
+	MPI_Sendrecv_replace(&(a[0][0]),blocksize*blocksize, MPI_INT,dest_A_rank,tag,src_A_rank,tag,comm,&status);
+	MPI_Sendrecv_replace(&(b[0][0]),blocksize*blocksize, MPI_INT,dest_B_rank,tag,src_B_rank,tag,comm,&status);
+		
 
 
-	if(myrank==0){
-		cout<<"printing c in mm_rotate_A_rotate_B\n";
-		for(int i=0;i<n;++i){
+	if(myrank==3){
+		cout<<"mm_rotate_A_rotate_B AFTER A => \n";
+		for(int i=0;i<blocksize;++i){
 			for(int j=0;j<n;++j){
-				cout<<c[i][j]<<" ";
+				cout<<b[i][j]<<" ";
 			}
 			cout<<"\n";
 		}
 	}
+	cout<<"\n++++++++++++++++++++++++++++++++\n";
+	/*
+	for(int l=1 ;l<=sqrtP;++l){
+		int k=(j+i+l-1)%sqrtP;
+		c[i][j]+=a[i][k]*b[k][j];
+		if(l<sqrtP){
+			
+		}
+	}
+	*/
+	for(int l=1;l<=sqrtP;++l){
+		cout<<"HEY";
+		//int k=(row+col+l-1)%sqrtP;
+		
+		performMatMul(c,a,b, myrank,blocksize);
+		if(l < sqrtP){
+			MPI_Sendrecv_replace(&(a[0][0]),blocksize*blocksize, MPI_INT,(row*sqrtP+(sqrtP+col-1)%sqrtP),tag, (row*sqrtP+(sqrtP+col+1)%sqrtP) ,tag,comm,&status);
+			MPI_Sendrecv_replace(&(b[0][0]),blocksize*blocksize, MPI_INT,(col+sqrtP*((sqrtP+row-1)%sqrtP)),tag, (col+sqrtP*((sqrtP+row+1)%sqrtP)) ,tag,comm,&status);
+		}
+	}
+	
 
 }
 
@@ -263,27 +296,26 @@ int main(int argc, char *argv[]){
 	// performMatMul(smallMat_C,smallMat_A, smallMat_B, myrank,blocksize);
 
 
-	mm_rotate_A_rotate_B(smallMat_C, smallMat_A, smallMat_B, blocksize, myrank, world_size, blocksize, smallMatType);
+	mm_rotate_A_rotate_B(smallMat_C, smallMat_A, smallMat_B, blocksize, myrank, world_size, blocksize, smallMatType,MPI_COMM_WORLD);
 
 
 
-	// MPI_Gatherv(&(smallMat_C[0][0]), blocksize*blocksize,  MPI_INT,
- //                 globalptr_C, sendcount, displaycount, smallMatType,
- //                 0, MPI_COMM_WORLD);
-	// free2dchar(&smallMat_A);
-	// free2dchar(&smallMat_B);
-	// free2dchar(&smallMat_C);
-	// if(myrank==0){
-	// 	for (int i=0; i<n; i++) {
-	// 		for (int j=0; j<n; j++){	
-	// 			cout<<C[i][j]<<" ";
-	// 		}
-	// 		cout<<"\n";
-	// 	}
-	// 	free2dchar(&A);
-	// 	free2dchar(&B);
-	// 	free2dchar(&C);
-	// }		
+	 MPI_Gatherv(&(smallMat_C[0][0]), blocksize*blocksize,  MPI_INT,
+         globalptr_C, sendcount, displaycount, smallMatType,0, MPI_COMM_WORLD);
+	 free2dchar(&smallMat_A);
+	 free2dchar(&smallMat_B);
+	 free2dchar(&smallMat_C);
+	 if(myrank==0){
+	 	for (int i=0; i<n; i++) {
+	 		for (int j=0; j<n; j++){	
+	 			cout<<C[i][j]<<" ";
+	 		}
+	 		cout<<"\n";
+	 	}
+	 	free2dchar(&A);
+	 	free2dchar(&B);
+	 	free2dchar(&C);
+	 }		
 	MPI_Type_free(&smallMatType);
 	MPI_Finalize();	
 
