@@ -79,43 +79,40 @@ void print1DVector(std::vector<int>testVector, std::string stg){
 void allocate2dVector(){
 
 }
-int malloc2dint(int ***array, int n, int m) {
 
-    /* allocate the n*m contiguous items */
-    int *p = (int *)malloc(n*m*sizeof(int));
-    if (!p) return -1;
+int malloc2DInt(int ***array, int row, int col) { 
+  
+     int *pointer = (int *)malloc(row*col*sizeof(int));
+     if (!pointer) return -1;
+ 
 
-    /* allocate the row pointers into the memory */
-    (*array) = (int **)malloc(n*sizeof(int*));
-    if (!(*array)) {
-       free(p);
-       return -1;
-    }
-
-    /* set up the pointers into the contiguous memory */
-    for (int i=0; i<n; i++)
-       (*array)[i] = &(p[i*m]);
-
-    return 0;
+     (*array) = (int **)malloc(row*sizeof(int*));
+     if (!(*array)) {
+        free(pointer);
+        return -1;
+     }
+ 
+     for (int i=0; i<row; i++)
+        (*array)[i] = &(pointer[i*col]);
+ 
+     return 0;
 }
 
 void performMatMul(int **C,int **A, int **B, int myrank, int n){
 	for (int i = 0; i < n; i++)
     	{
-        	for (int j = 0; j < n; j++)
+        	for (int k = 0; k < n; k++)
         	{
             	
-            		for (int k = 0; k < n; k++)
+            		for (int j = 0; j < n; j++)
                 		C[i][j] += A[i][k]*B[k][j];
         	}
     	}	
 }
 
-int free2dchar(int ***array) {
-    /* free the memory - the first element of the array is at the start */
+int free2DIntArr(int ***array) {
     free(&((*array)[0][0]));
 
-    /* free the pointers into the memory */
     free(*array);
 
     return 0;
@@ -170,9 +167,9 @@ int main(int argc, char *argv[]){
 	int **B;
 	int **C;
 	if(myrank==0){
-		malloc2dint(&A, n, n);
-		malloc2dint(&B, n, n);
-		malloc2dint(&C, n, n);
+		malloc2DInt(&A, n, n);
+		malloc2DInt(&B, n, n);
+		malloc2DInt(&C, n, n);
 		for (int i=0; i<n; i++) {
 			for (int j=0; j<n; j++){
 				A[i][j] = (i*j+1) % 10;
@@ -180,13 +177,14 @@ int main(int argc, char *argv[]){
 				C[i][j] = 0;
 			}
 		}
-		/*cout<<"A =>\n";
+		cout<<"A =>\n";
 		for (int i=0; i<n; i++) {
 			for (int j=0; j<n; j++){
 				cout<<A[i][j]<<" ";
 			}
 			cout<<"\n";
 		}
+		/*
 		cout<<"B =>\n";
 		for (int i=0; i<n; i++) {
 			for (int j=0; j<n; j++){
@@ -200,9 +198,9 @@ int main(int argc, char *argv[]){
 	int **smallMat_A;
 	int **smallMat_B;
 	int **smallMat_C;
-	malloc2dint(&smallMat_A, blocksize, blocksize);
-	malloc2dint(&smallMat_B, blocksize, blocksize);
-	malloc2dint(&smallMat_C, blocksize, blocksize);
+	malloc2DInt(&smallMat_A, blocksize, blocksize);
+	malloc2DInt(&smallMat_B, blocksize, blocksize);
+	malloc2DInt(&smallMat_C, blocksize, blocksize);
 	//smallMat.resize(blocksize, std::vector<int>(blocksize,0));
 	MPI_Datatype type, smallMatType;
 	int sizes[2]={n,n};
@@ -240,9 +238,9 @@ int main(int argc, char *argv[]){
 
 	MPI_Gatherv(&(smallMat_C[0][0]), blocksize*blocksize,  MPI_INT, globalptr_C, sendcount, 
 		displaycount, smallMatType,0, MPI_COMM_WORLD);
-	free2dchar(&smallMat_A);
-	free2dchar(&smallMat_B);
-	free2dchar(&smallMat_C);
+	free2DIntArr(&smallMat_A);
+	free2DIntArr(&smallMat_B);
+	free2DIntArr(&smallMat_C);
 	if(myrank==0){
 		for (int i=0; i<n; i++) {
 			for (int j=0; j<n; j++){	
@@ -250,9 +248,9 @@ int main(int argc, char *argv[]){
 			}
 			cout<<"\n";
 		}
-		free2dchar(&A);
-		free2dchar(&B);
-		free2dchar(&C);
+		free2DIntArr(&A);
+		free2DIntArr(&B);
+		free2DIntArr(&C);
 	}		
 	MPI_Type_free(&smallMatType);
 	MPI_Finalize();	
