@@ -25,7 +25,7 @@ int malloc2DInt(int ***array, int row, int col) {
      return 0;
 }
 
-int ** getSmallerMatrix(int **m, int row_st,int row_end, int col_st, int col_end){
+int ** getSmallerMatrix(int **m, int n,int row_st,int row_end, int col_st, int col_end){
 	int **newm; 
 	malloc2DInt(&newm, n, n);
 	for(int i=0;i<row_end-row_st;++i){
@@ -34,6 +34,15 @@ int ** getSmallerMatrix(int **m, int row_st,int row_end, int col_st, int col_end
 		}
 	}
 	return newm;
+}
+
+int **mergeMatrix(int **mat, int **smallMat, int n, int small_n_row, int small_n_col, int small_n_size){
+	**mergeMatr(int **mat, int **smallMat, int n, int small_n_row, int small_n_col, int small_n_size)
+	for(int i=0; i<small_n_size; ++i){
+		for(int j=0; j<small_n_size; ++j){
+			mat[small_n_row+i][small_n_col+j] = smallMat[i][j];
+		}
+	}
 }
 
 //0 for Head
@@ -120,6 +129,15 @@ int free2DIntArr(int ***array) {
     return 0;
 }
 
+void print(int **mat, int n, int rank){
+	cout<<"printprint rank: "<<rank<<" "<<"\n";
+	for(int i=0;i<n;++i){
+		for(int j=0;j<n;++j){
+			cout<<mat[i][j]<<" ";
+		}cout<<"\n";
+	}
+}
+
 void mm_rotate_A_rotate_B(int **c, int **a, int **b, int n, int myrank, int processor, int blocksize, MPI_Datatype smallMatType,MPI_Comm comm){
 	MPI_Status status;
 	int tag=123456;
@@ -168,7 +186,10 @@ int main(int argc, char *argv[]){
 	int **A;
 	int **B;
 	int **C;
-	int tag=123;
+	int tag_A=1;
+	int tag_B=2;
+	int tag_C=3;
+
 	if(myrank==0){
 		malloc2DInt(&A, n, n);
 		malloc2DInt(&B, n, n);
@@ -191,65 +212,118 @@ int main(int argc, char *argv[]){
 		}
 		int sqrtP=sqrt(world_size);
 		int rankTemp=0;
+		MPI_Request request_A[world_size];
+		MPI_Request request_B[world_size];
+		MPI_Request request_C[world_size];
+		
 		for(int i=0;i<sqrtP;++i){
 			for(int j=0;j<sqrtP;++j){
-				rankTemp++;
 				int row=rankTemp/sqrtP;
 				int col=rankTemp%sqrtP;
 				int **smallMat_A;
 				int **smallMat_B;
 				int **smallMat_C;
+				cout<<"row start: "<<row<<" "<<"row end"<<row+blocksize<<" col: "<<col<<" col end: "<<col+blocksize<<"\n";
+				smallMat_A=getSmallerMatrix( A,  n, row, row+blocksize,  col,  col+blocksize);
+				smallMat_B=getSmallerMatrix( B,  n, row, row+blocksize,  col,  col+blocksize);
+				smallMat_C=getSmallerMatrix( C,  n, row, row+blocksize,  col,  col+blocksize);
 
-				smallMat_A=getSmallerMatrix( A,  row, row+blocksize,  col,  col+blocksize);
-				smallMat_B=getSmallerMatrix( B,  row, row+blocksize,  col,  col+blocksize);
-				smallMat_C=getSmallerMatrix( C,  row, row+blocksize,  col,  col+blocksize);
-
-				/*
-				int MPI_Isend(const void *buf, int count, MPI_Datatype datatype, int dest, int tag,
-              MPI_Comm comm, MPI_Request *request)
-				*/
-				MPI_Request request;
-				MPI_Isend(&(smallMat_A[0][0]), blocksize*blocksize, MPI_INT, rankTemp, tag,MPI_COMM_WORLD,&request);
-				MPI_Isend(&(smallMat_B[0][0]), blocksize*blocksize, MPI_INT, rankTemp, tag,MPI_COMM_WORLD,&request);
-				MPI_Isend(&(smallMat_C[0][0]), blocksize*blocksize, MPI_INT, rankTemp, tag,MPI_COMM_WORLD,&request);
+				
+				MPI_Isend(&(smallMat_A[0][0]), blocksize*blocksize, MPI_INT, rankTemp, tag_A, MPI_COMM_WORLD, &request_A[i*sqrtP+j]);
+				MPI_Isend(&(smallMat_B[0][0]), blocksize*blocksize, MPI_INT, rankTemp, tag_B, MPI_COMM_WORLD, &request_B[i*sqrtP+j]);
+				MPI_Isend(&(smallMat_C[0][0]), blocksize*blocksize, MPI_INT, rankTemp, tag_C, MPI_COMM_WORLD, &request_C[i*sqrtP+j]);
+				rankTemp++;
 			}
 		}
+
+		// MPI_Wait(&request_A[0],&status);
+		// MPI_Wait(&request_B[0],&status);
+		// MPI_Wait(&request_C[0],&status);
 	}
 
-	MPI_Request request_1;
-	MPI_Status status;
+
+	MPI_Request request_recv_matrices[3];
+	
 	int **smallMat_A;
 	int **smallMat_B;
 	int **smallMat_C;
-	/*
-	int MPI_Irecv(void *buf, int count, MPI_Datatype datatype, int source,
-	              int tag, MPI_Comm comm, MPI_Request *request)
-	*/
-	
-	MPI_Irecv(&(smallMat_A[0][0]), blocksize*blocksize, MPI_INT, 0, tag,MPI_COMM_WORLD,&request);
-	MPI_Irecv(&(smallMat_B[0][0]), blocksize*blocksize, MPI_INT, 0, tag,MPI_COMM_WORLD,&request);
-	MPI_Irecv(&(smallMat_C[0][0]), blocksize*blocksize, MPI_INT, 0, tag,MPI_COMM_WORLD,&request);
-	MPI_Wait(&request_1, &status);
+	malloc2DInt(&smallMat_A, blocksize, blocksize);
+	malloc2DInt(&smallMat_B, blocksize, blocksize);
+	malloc2DInt(&smallMat_C, blocksize, blocksize);
+	MPI_Irecv(&(smallMat_A[0][0]), blocksize*blocksize, MPI_INT, 0, tag_A, MPI_COMM_WORLD,&request_recv_matrices[0]);
+	MPI_Irecv(&(smallMat_B[0][0]), blocksize*blocksize, MPI_INT, 0, tag_B, MPI_COMM_WORLD,&request_recv_matrices[1]);
+	MPI_Irecv(&(smallMat_C[0][0]), blocksize*blocksize, MPI_INT, 0, tag_C, MPI_COMM_WORLD,&request_recv_matrices[2]);
+	MPI_Wait(&request_recv_matrices[0], &status);
+	MPI_Wait(&request_recv_matrices[1], &status);
+	MPI_Wait(&request_recv_matrices[2], &status);
 
+	print(smallMat_A, n, myrank);
+	cout<<"*************\n";
+	print(smallMat_B, n, myrank);
+	cout<<"*************\n";
+	print(smallMat_C, n, myrank);
 
 	// performMatMul(smallMat_C,smallMat_A, smallMat_B, myrank,blocksize);
 	mm_rotate_A_rotate_B(smallMat_C, smallMat_A, smallMat_B, blocksize, myrank, world_size, blocksize, smallMatType,MPI_COMM_WORLD);
 
+
+	/***********SENDING MATRIX AFTER CALCULATING*************************/
+	int row=myrank/sqrtP;
+	int col=myrank%sqrtP;
+	
+	MPI_Request request_send;
+	MPI_Isend(&(smallMat_C[0][0]), blocksize*blocksize, MPI_INT, 0, tag_C, MPI_COMM_WORLD, &request_send);
+
+
+	if(myrank==0){
+
+		int rankTemp=0;
+		MPI_Wait(&request_send[0],&status);
+
+		MPI_Request request_recv[world_size];
+		for(int i=0;i<sqrtP;++i){
+			for(int j=0;j<sqrtP;++j){
+				int row=rankTemp/sqrtP;
+				int col=rankTemp%sqrtP;
+				int **smallMat_C=getSmallerMatrix( C,  n, row, row+blocksize,  col,  col+blocksize);
+
+				MPI_Irecv(&(smallMat_C[0][0]), blocksize*blocksize, MPI_INT, 0, tag_C, MPI_COMM_WORLD,&request_recv[i*sqrtP+j]);
+				rankTemp++;
+			}
+		}
+
+		for(int i=0;i<sqrtP;++i){
+			for(int j=0;j<sqrtP;++j){
+				MPI_Wait(&request_recv[i*sqrtP+j], &status);
+				mergeMatrix(C, smallMat_C, n, row, col, blocksize);
+			}
+		}
+
+		cout<<"Printing Matrix C\n";
+		for(int i=0;i<n;++i){
+			for(int j=0;j<n;++j){
+				cout<<C[i][j]<<" ";
+			}cout<<"\n";
+		}
+	}
+
 	free2DIntArr(&smallMat_A);
 	free2DIntArr(&smallMat_B);
 	free2DIntArr(&smallMat_C);
-	if(myrank==0){
-		for (int i=0; i<n; i++) {
-			for (int j=0; j<n; j++){	
-				cout<<C[i][j]<<" ";
-			}
-			cout<<"\n";
-		}
-		free2DIntArr(&A);
-		free2DIntArr(&B);
-		free2DIntArr(&C);
-	}		
-	MPI_Type_free(&smallMatType);
+	// free2DIntArr(&smallMat_B);
+	// free2DIntArr(&smallMat_C);
+	// if(myrank==0){
+	// 	for (int i=0; i<n; i++) {
+	// 		for (int j=0; j<n; j++){	
+	// 			cout<<C[i][j]<<" ";
+	// 		}
+	// 		cout<<"\n";
+	// 	}
+	// 	free2DIntArr(&A);
+	// 	free2DIntArr(&B);
+	// 	free2DIntArr(&C);
+	// }		
+	
 	MPI_Finalize();	
 
 	return 0;
