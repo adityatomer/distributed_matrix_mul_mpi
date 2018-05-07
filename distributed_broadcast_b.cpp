@@ -118,14 +118,6 @@ int free2DIntArr(int ***array) {
     return 0;
 }
 
-void copy2DMatrix(int **mat, int **local, int row, int col){
-	for(int i=0;i<row;++i){
-		for(int j=0;j<col;++j){
-			local[i][j]=mat[i][j];
-		}
-	}
-}
-
 void mm_rotate_A_broadcast_B(int **c, int **a, int **b, int myrank, int world_size, int blocksize, MPI_Comm COL_COMM_WORLD){
 
 	MPI_Status status;
@@ -141,8 +133,7 @@ void mm_rotate_A_broadcast_B(int **c, int **a, int **b, int myrank, int world_si
 	for(int l=1;l<=sqrtP;++l){
 		int k=(col+l-1)%sqrtP;
 		if(k==row){
-			// local_buffer_pntr=&(b[0][0]);
-			copy2DMatrix(b,local_allocated_buffer,blocksize,blocksize);
+			local_allocated_buffer=b;
 		}
 
 		MPI_Bcast(&(local_allocated_buffer[0][0]), blocksize*blocksize, MPI_INT, k, COL_COMM_WORLD);
