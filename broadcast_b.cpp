@@ -118,7 +118,15 @@ int free2DIntArr(int ***array) {
     return 0;
 }
 
-void mm_rotate_A_broadcast_B(int **c, int **a, int **b, int myrank, int world_size, int blocksize, MPI_Comm COL_COMM_WORLD[]){
+void copy2DMatrix(int **mat, int **local, int row, int col){
+	for(int i=0;i<row;++i){
+		for(int j=0;j<col;++j){
+			local[i][j]=mat[i][j];
+		}
+	}
+}
+
+void mm_rotate_A_broadcast_B(int **c, int **a, int **b, int myrank, int world_size, int blocksize, MPI_Comm COL_COMM_WORLD){
 
 	MPI_Status status;
 	int tag=123456;
@@ -133,11 +141,11 @@ void mm_rotate_A_broadcast_B(int **c, int **a, int **b, int myrank, int world_si
 	for(int l=1;l<=sqrtP;++l){
 		int k=(col+l-1)%sqrtP;
 		if(k==row){
-			local_buffer_pntr=&(b[0][0]);
-		}else{
-			local_buffer_pntr=&(local_allocated_buffer[0][0]);
-		}	
-		MPI_Bcast(local_buffer_pntr, blocksize*blocksize, MPI_INT, k, COL_COMM_WORLD[myrank%sqrtP]);
+			// local_buffer_pntr=&(b[0][0]);
+			copy2DMatrix(b,local_allocated_buffer,blocksize,blocksize);
+		}
+
+		MPI_Bcast(&(local_allocated_buffer[0][0]), blocksize*blocksize, MPI_INT, k, COL_COMM_WORLD);
 		performMatMul(c,a,local_allocated_buffer,blocksize);
 		if(l < sqrtP){
 			MPI_Sendrecv_replace(&(a[0][0]),blocksize*blocksize, MPI_INT,(row*sqrtP+(sqrtP+col-1)%sqrtP),tag, (row*sqrtP+(sqrtP+col+1)%sqrtP) ,tag,MPI_COMM_WORLD,&status);
@@ -152,11 +160,10 @@ int main(int argc, char *argv[]){
 	MPI_Status status;
 	MPI_Init(&argc,&argv);
 	MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-    	MPI_Comm_rank(MPI_COMM_WORLD, &myrank);	
+    MPI_Comm_rank(MPI_COMM_WORLD, &myrank);	
 	int sqrtP=sqrt(world_size);
-	MPI_Comm COL_COMM_WORLD[sqrtP];
-	MPI_Comm_split(MPI_COMM_WORLD, myrank % sqrtP, myrank, &COL_COMM_WORLD[myrank % sqrtP]);
-
+	MPI_Comm COL_COMM_WORLD;
+	MPI_Comm_split(MPI_COMM_WORLD, myrank % sqrtP, myrank, &COL_COMM_WORLD);
 	int blockcount = sqrt(world_size);
 	int blocksize  = n/blockcount;
 	int sendcount[world_size];
