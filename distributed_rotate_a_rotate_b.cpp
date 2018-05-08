@@ -3,8 +3,19 @@
 #include<vector>
 #include<mpi.h>
 #include<cmath>
+#include<chrono>
+#include<stdio.h>
+#include<chrono>
+#include<iostream>
+#include<math.h>
+#include<time.h>
+#include<array>
+#include <ctime>
+#include <stdlib.h>
 #define mod 10
+// using namespace std;
 using namespace std;
+typedef int64_t __int64;
 typedef std::vector<std::vector<int> > Matrix;
 
 Matrix getSmallerMatrix(Matrix m, int row_st,int row_end, int col_st, int col_end){
@@ -49,31 +60,31 @@ Matrix getMatrixOfSizeR(int n, bool isRandom=true){
 }
 
 void print(Matrix A){
-	cout<<"print called with A size: "<<A.size()<<endl;
+	std::cout<<"print called with A size: "<<A.size()<<std::endl;
 	int n=A.size();
 	for(int i=0;i<n;++i){
 		for(int j=0;j<n;++j){
-			cout<<A[i][j]<<" ";
+			std::cout<<A[i][j]<<" ";
 		}
-		cout<<endl;
+		std::cout<<std::endl;
 	}
-	cout<<"************\n";
+	std::cout<<"************\n";
 }
 void print(int rank, std::string stg, int **A, int n){
-        cout<<"\nprint called with (array) size: "<<n<<endl;
+        std::cout<<"\nprint called with (array) size: "<<n<<std::endl;
         for(int i=0;i<n;++i){
                 for(int j=0;j<n;++j){
-                        cout<<stg<<"_"<<rank<<"_"<<A[i][j]<<" ";
+                        std::cout<<stg<<"_"<<rank<<"_"<<A[i][j]<<" ";
                 }
-                cout<<endl;
+                std::cout<<std::endl;
         }
-        cout<<"************\n";
+        std::cout<<"************\n";
 }
 void print1DVector(std::vector<int>testVector, std::string stg){
 	for(int i=0;i<testVector.size();++i){
-        	cout<<stg<<" "<<testVector[i]<<"\n";
+        	std::cout<<stg<<" "<<testVector[i]<<"\n";
         }
-	cout<<"\n";
+	std::cout<<"\n";
 }
 
 void allocate2dVector(){
@@ -166,6 +177,14 @@ int main(int argc, char *argv[]){
 	int **A;
 	int **B;
 	int **C;
+	int **smallMat_A;
+	int **smallMat_B;
+	int **smallMat_C;
+	malloc2DInt(&smallMat_A, blocksize, blocksize);
+	malloc2DInt(&smallMat_B, blocksize, blocksize);
+	malloc2DInt(&smallMat_C, blocksize, blocksize);
+	__int64 now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+	/*__cilkrts_set_param("nworkers", argv[1]);*/
 	if(myrank==0){
 		malloc2DInt(&A, n, n);
 		malloc2DInt(&B, n, n);
@@ -177,35 +196,31 @@ int main(int argc, char *argv[]){
 				C[i][j] = 0;
 			}
 		}
-		cout<<"A =>\n";
+		std::cout<<"A =>\n";
 		for (int i=0; i<n; i++) {
 			for (int j=0; j<n; j++){
-				cout<<A[i][j]<<" ";
+				std::cout<<A[i][j]<<" ";
 			}
-			cout<<"\n";
+			std::cout<<"\n";
 		}
 		/*
-		cout<<"B =>\n";
+		std::cout<<"B =>\n";
 		for (int i=0; i<n; i++) {
 			for (int j=0; j<n; j++){
-				cout<<B[i][j]<<" ";
+				std::cout<<B[i][j]<<" ";
 			}
-			cout<<"\n";
+			std::cout<<"\n";
 		}
 		*/
-		cout<<"world_size: "<<world_size<<" "<<" blockcount: "<<blockcount<<" blocksize: "<<blocksize<<endl;
+		std::cout<<"world_size: "<<world_size<<" "<<" blockcount: "<<blockcount<<" blocksize: "<<blocksize<<"\n";
 	}
-	int **smallMat_A;
-	int **smallMat_B;
-	int **smallMat_C;
-	malloc2DInt(&smallMat_A, blocksize, blocksize);
-	malloc2DInt(&smallMat_B, blocksize, blocksize);
-	malloc2DInt(&smallMat_C, blocksize, blocksize);
+	
 	//smallMat.resize(blocksize, std::vector<int>(blocksize,0));
 	MPI_Datatype type, smallMatType;
 	int sizes[2]={n,n};
 	int subSizes[2]={blocksize,blocksize};
 	int starts[2]={0,0};
+
 	MPI_Type_create_subarray(2, sizes, subSizes, starts, MPI_ORDER_C, MPI_INT, &type);
 	MPI_Type_create_resized(type, 0, blocksize*sizeof(int), &smallMatType);
 	MPI_Type_commit(&smallMatType);
@@ -238,15 +253,20 @@ int main(int argc, char *argv[]){
 
 	MPI_Gatherv(&(smallMat_C[0][0]), blocksize*blocksize,  MPI_INT, globalptr_C, sendcount, 
 		displaycount, smallMatType,0, MPI_COMM_WORLD);
+
+	__int64 now1 = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+	float timeTaken=float (now1- now);
+	
+
 	free2DIntArr(&smallMat_A);
 	free2DIntArr(&smallMat_B);
 	free2DIntArr(&smallMat_C);
 	if(myrank==0){
 		for (int i=0; i<n; i++) {
 			for (int j=0; j<n; j++){	
-				cout<<C[i][j]<<" ";
+				std::cout<<C[i][j]<<" ";
 			}
-			cout<<"\n";
+			std::cout<<"\n";
 		}
 		free2DIntArr(&A);
 		free2DIntArr(&B);
@@ -254,6 +274,7 @@ int main(int argc, char *argv[]){
 	}		
 	MPI_Type_free(&smallMatType);
 	MPI_Finalize();	
+	std::cout<<"time taken: "<<timeTaken<<"\n";
 
 	return 0;
 }

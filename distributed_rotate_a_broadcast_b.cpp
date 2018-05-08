@@ -3,10 +3,19 @@
 #include<vector>
 #include<mpi.h>
 #include<cmath>
+#include<chrono>
+#include<stdio.h>
+#include<chrono>
+#include<iostream>
+#include<math.h>
+#include<time.h>
+#include<array>
+#include <ctime>
+#include <stdlib.h>
 #define mod 10
 using namespace std;
 typedef std::vector<std::vector<int> > Matrix;
-
+typedef int64_t __int64;
 Matrix getSmallerMatrix(Matrix m, int row_st,int row_end, int col_st, int col_end){
 	Matrix newm;
 	for(int i=0;i<row_end-row_st;++i){
@@ -17,7 +26,6 @@ Matrix getSmallerMatrix(Matrix m, int row_st,int row_end, int col_st, int col_en
 	}
 	return newm;
 }
-
 //0 for Head
 //1 for Tail
 time_t g_seed;
@@ -25,12 +33,10 @@ void seedRandomNumber(){
 	srand(time(NULL));
 	g_seed=rand();
 }
-
 inline uint64_t getRandomNumber() { 
 	g_seed = (214013*g_seed+2531011); 
 	return ((g_seed>>16)&0x7FFF)%mod; 
 } 
-
 
 Matrix getMatrixOfSizeR(int n, bool isRandom=true){
 	Matrix A;
@@ -162,6 +168,13 @@ int main(int argc, char *argv[]){
 	int **A;
 	int **B;
 	int **C;
+	int **smallMat_A;
+	int **smallMat_B;
+	int **smallMat_C;
+	malloc2DInt(&smallMat_A, blocksize, blocksize);
+	malloc2DInt(&smallMat_B, blocksize, blocksize);
+	malloc2DInt(&smallMat_C, blocksize, blocksize);
+	__int64 now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 	if(myrank==0){
 		malloc2DInt(&A, n, n);
 		malloc2DInt(&B, n, n);
@@ -191,12 +204,7 @@ int main(int argc, char *argv[]){
 		*/
 		cout<<"world_size: "<<world_size<<" "<<" blockcount: "<<blockcount<<" blocksize: "<<blocksize<<endl;
 	}
-	int **smallMat_A;
-	int **smallMat_B;
-	int **smallMat_C;
-	malloc2DInt(&smallMat_A, blocksize, blocksize);
-	malloc2DInt(&smallMat_B, blocksize, blocksize);
-	malloc2DInt(&smallMat_C, blocksize, blocksize);
+	
 	//smallMat.resize(blocksize, std::vector<int>(blocksize,0));
 	MPI_Datatype type, smallMatType;
 	int sizes[2]={n,n};
@@ -234,6 +242,8 @@ int main(int argc, char *argv[]){
 
 	MPI_Gatherv(&(smallMat_C[0][0]), blocksize*blocksize,  MPI_INT, globalptr_C, sendcount, 
 		displaycount, smallMatType,0, MPI_COMM_WORLD);
+	__int64 now1 = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+	float timeTaken=float (now1- now);
 	free2DIntArr(&smallMat_A);
 	free2DIntArr(&smallMat_B);
 	free2DIntArr(&smallMat_C);
@@ -250,7 +260,7 @@ int main(int argc, char *argv[]){
 	}		
 	MPI_Type_free(&smallMatType);
 	MPI_Finalize();	
-
+	std::cout<<"time taken: "<<timeTaken<<"\n";
 	return 0;
 }
 
