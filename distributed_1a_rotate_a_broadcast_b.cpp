@@ -3,7 +3,17 @@
 #include<vector>
 #include<mpi.h>
 #include<cmath>
+#include<chrono>
+#include<stdio.h>
+#include<chrono>
+#include<iostream>
+#include<math.h>
+#include<time.h>
+#include<array>
+#include <ctime>
+#include <stdlib.h>
 #define mod 10
+typedef int64_t __int64;
 using namespace std;
 typedef std::vector<std::vector<int> > Matrix;
 
@@ -188,7 +198,7 @@ void mm_rotate_A_broadcast_B(int **c, int **a, int **b, int myrank, int processo
 int main(int argc, char *argv[]){
 	seedRandomNumber();
 	int n=atoi(argv[1]);
-
+	int flag = atoi(argv[2]);
 	int world_size,myrank;
 	MPI_Status status;
 	MPI_Init(&argc,&argv);
@@ -207,6 +217,7 @@ int main(int argc, char *argv[]){
 	int tag_B=2;
 	int tag_C=3;
 	int sqrtP=sqrt(world_size);
+	__int64 now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 	if(myrank==0){
 		malloc2DInt(&A, n, n);
 		malloc2DInt(&B, n, n);
@@ -220,16 +231,21 @@ int main(int argc, char *argv[]){
 				C[i][j] = 0;
 			}
 		}
-		cout<<"A =>\n";
-		for (int i=0; i<n; i++) {
-			for (int j=0; j<n; j++){
-				cout<<A[i][j]<<" ";
+		cout<<"A completed =>\n";
+		if(flag==1){
+			for (int i=0; i<n; i++) {
+				for (int j=0; j<n; j++){
+					cout<<A[i][j]<<" ";
+				}
+				cout<<"\n";
 			}
-			cout<<"\n";
 		}
 		cout<<"****************************\n\n";
-		cout<<"B=>\n";
-		print(B, n, myrank);
+
+		cout<<"B completed =>\n";
+		if(flag==1){
+			print(B, n, myrank);
+		}
 		int rankTemp=0;
 		MPI_Request request_A[world_size];
 		MPI_Request request_B[world_size];
@@ -316,7 +332,8 @@ int main(int argc, char *argv[]){
 				
 			}
 		}
-
+		__int64 now1 = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+		float timeTaken=float (now1- now);	
 		// cnt=0;
 		// for(int i=0;i<sqrtP;++i){
 		// 	for(int j=0;j<sqrtP;++j){
@@ -327,8 +344,11 @@ int main(int argc, char *argv[]){
 		// 	}
 		// }
 		cout<<"****************************\n\n";
-		cout<<"C =>\n";
-		print(C, n, myrank);
+		cout<<"Matrix multiplication done:: C =>\n";
+		if(flag==1){
+			print(C, n, myrank);
+		}
+		std::cout<<"time taken: "<<timeTaken<<"\n";
 		// cout<<"Printing Matrix C\n";
 		// for(int i=0;i<n;++i){
 		// 	for(int j=0;j<n;++j){

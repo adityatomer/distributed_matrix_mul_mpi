@@ -3,8 +3,18 @@
 #include<vector>
 #include<mpi.h>
 #include<cmath>
+#include<chrono>
+#include<stdio.h>
+#include<chrono>
+#include<iostream>
+#include<math.h>
+#include<time.h>
+#include<array>
+#include <ctime>
+#include <stdlib.h>
 #define mod 10
 using namespace std;
+typedef int64_t __int64;
 typedef std::vector<std::vector<int> > Matrix;
 
 int malloc2DInt(int ***array, int row, int col) { 
@@ -38,7 +48,6 @@ int ** getSmallerMatrix(int **m, int n,int row_st,int row_end, int col_st, int c
 }
 
 void mergeMatrix(int **mat, int **smallMat, int small_n_row, int small_n_col, int small_n_size){
-	// **mergeMatr(int **mat, int **smallMat, int n, int small_n_row, int small_n_col, int small_n_size)
 	for(int i=0; i<small_n_size; ++i){
 		for(int j=0; j<small_n_size; ++j){
 			mat[small_n_row+i][small_n_col+j] = smallMat[i][j];
@@ -46,8 +55,6 @@ void mergeMatrix(int **mat, int **smallMat, int small_n_row, int small_n_col, in
 	}
 }
 
-//0 for Head
-//1 for Tail
 time_t g_seed;
 void seedRandomNumber(){
 	srand(time(NULL));
@@ -162,14 +169,14 @@ void mm_broadcast_A_broadcast_B(int **c, int **a, int **b, int myrank, int proce
 
 	MPI_Sendrecv_replace(&(a[0][0]),blocksize*blocksize, MPI_INT,dest_A_rank,tag,src_A_rank,tag,comm,&status);
 	MPI_Sendrecv_replace(&(b[0][0]),blocksize*blocksize, MPI_INT,dest_B_rank,tag,src_B_rank,tag,comm,&status);
-
-	// for(int l=1;l<=sqrtP;++l){
-	// 	performMatMul(c,a,b, myrank,blocksize);
-	// 	if(l < sqrtP){
-	// 		MPI_Sendrecv_replace(&(a[0][0]),blocksize*blocksize, MPI_INT,(row*sqrtP+(sqrtP+col-1)%sqrtP),tag, (row*sqrtP+(sqrtP+col+1)%sqrtP) ,tag,comm,&status);
-	// 		MPI_Sendrecv_replace(&(b[0][0]),blocksize*blocksize, MPI_INT,(col+sqrtP*((sqrtP+row-1)%sqrtP)),tag, (col+sqrtP*((sqrtP+row+1)%sqrtP)) ,tag,comm,&status);
-	// 	}
-	// }
+	/*
+	for(int l=1;l<=sqrtP;++l){
+		performMatMul(c,a,b, myrank,blocksize);
+		if(l < sqrtP){
+			MPI_Sendrecv_replace(&(a[0][0]),blocksize*blocksize, MPI_INT,(row*sqrtP+(sqrtP+col-1)%sqrtP),tag, (row*sqrtP+(sqrtP+col+1)%sqrtP) ,tag,comm,&status);
+			MPI_Sendrecv_replace(&(b[0][0]),blocksize*blocksize, MPI_INT,(col+sqrtP*((sqrtP+row-1)%sqrtP)),tag, (col+sqrtP*((sqrtP+row+1)%sqrtP)) ,tag,comm,&status);
+		}
+	}*/
 	int **local_allocated_buffer;
 	malloc2DInt(&local_allocated_buffer, blocksize, blocksize);
 	int **local_allocated_buffer_a;
@@ -177,29 +184,25 @@ void mm_broadcast_A_broadcast_B(int **c, int **a, int **b, int myrank, int proce
 	for(int l=1;l<=sqrtP;++l){
 		int k=(l-1);
 		if(k==col){
-			// copy2DMatrix(a,local_allocated_buffer_a,blocksize,blocksize);
+			/*copy2DMatrix(a,local_allocated_buffer_a,blocksize,blocksize);*/
 			local_allocated_buffer_a =a ;
 		}
 		MPI_Bcast(&(local_allocated_buffer_a[0][0]), blocksize*blocksize, MPI_INT, k, ROW_COMM_WORLD);
 		if(k==row){
-			// local_buffer_pntr=&(b[0][0]);
-			// copy2DMatrix(b,local_allocated_buffer,blocksize,blocksize);
+			/* copy2DMatrix(b,local_allocated_buffer,blocksize,blocksize);*/
 			local_allocated_buffer=b;
 		}
 
 		MPI_Bcast(&(local_allocated_buffer[0][0]), blocksize*blocksize, MPI_INT, k, COL_COMM_WORLD);
 
 		performMatMul(c,local_allocated_buffer_a,local_allocated_buffer,myrank,blocksize);
-		// if(l < sqrtP){
-		// 	MPI_Sendrecv_replace(&(a[0][0]),blocksize*blocksize, MPI_INT,(row*sqrtP+(sqrtP+col-1)%sqrtP),tag, (row*sqrtP+(sqrtP+col+1)%sqrtP) ,tag,MPI_COMM_WORLD,&status);
-		// }
 	}
 }
 
 int main(int argc, char *argv[]){
 	seedRandomNumber();
 	int n=atoi(argv[1]);
-
+	int flag = atoi(argv[2]);
 	int world_size,myrank;
 	MPI_Status status;
 	MPI_Init(&argc,&argv);
@@ -220,6 +223,7 @@ int main(int argc, char *argv[]){
 	int tag_B=2;
 	int tag_C=3;
 	int sqrtP=sqrt(world_size);
+	__int64 now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 	if(myrank==0){
 		malloc2DInt(&A, n, n);
 		malloc2DInt(&B, n, n);
@@ -233,16 +237,21 @@ int main(int argc, char *argv[]){
 				C[i][j] = 0;
 			}
 		}
-		cout<<"A =>\n";
-		for (int i=0; i<n; i++) {
-			for (int j=0; j<n; j++){
-				cout<<A[i][j]<<" ";
+		cout<<"A completed =>\n";
+		if(flag==1){
+			for (int i=0; i<n; i++) {
+				for (int j=0; j<n; j++){
+					cout<<A[i][j]<<" ";
+				}
+				cout<<"\n";
 			}
-			cout<<"\n";
 		}
 		cout<<"****************************\n\n";
-		cout<<"B=>\n";
-		print(B, n, myrank);
+
+		cout<<"B completed =>\n";
+		if(flag==1){
+			print(B, n, myrank);
+		}
 		int rankTemp=0;
 		MPI_Request request_A[world_size];
 		MPI_Request request_B[world_size];
@@ -255,7 +264,6 @@ int main(int argc, char *argv[]){
 				int **smallMat_A;
 				int **smallMat_B;
 				int **smallMat_C;
-				// cout<<"row start: "<<row<<" "<<"row end: "<<row+blocksize<<" col: "<<col<<" col end: "<<col+blocksize<<"\n";
 				smallMat_A=getSmallerMatrix( A,  blocksize, row, row+blocksize,  col,  col+blocksize);
 				smallMat_B=getSmallerMatrix( B,  blocksize, row, row+blocksize,  col,  col+blocksize);
 				smallMat_C=getSmallerMatrix( C,  blocksize, row, row+blocksize,  col,  col+blocksize);
@@ -267,7 +275,6 @@ int main(int argc, char *argv[]){
 				rankTemp++;
 			}
 		}
-		// return 0;
 
 		// MPI_Wait(&request_A[0],&status);
 		// MPI_Wait(&request_B[0],&status);
@@ -303,7 +310,6 @@ int main(int argc, char *argv[]){
 	mm_broadcast_A_broadcast_B(smallMat_C, smallMat_A, smallMat_B, myrank, world_size, blocksize,MPI_COMM_WORLD,COL_COMM_WORLD,ROW_COMM_WORLD);
 	/***********SENDING MATRIX AFTER CALCULATING*************************/
 
-	print(smallMat_C,blocksize,myrank);
 	int row=myrank/sqrtP;
 	int col=myrank%sqrtP;
 	MPI_Request request_send;
@@ -331,7 +337,8 @@ int main(int argc, char *argv[]){
 				
 			}
 		}
-
+		__int64 now1 = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+		float timeTaken=float (now1- now);
 		// cnt=0;
 		// for(int i=0;i<sqrtP;++i){
 		// 	for(int j=0;j<sqrtP;++j){
@@ -342,8 +349,11 @@ int main(int argc, char *argv[]){
 		// 	}
 		// }
 		cout<<"****************************\n\n";
-		cout<<"C =>\n";
-		print(C, n, myrank);
+		cout<<"Matrix multiplication done:: C =>\n";
+		if(flag==1){
+			print(C, n, myrank);
+		}
+		std::cout<<"time taken: "<<timeTaken<<"\n";
 		// cout<<"Printing Matrix C\n";
 		// for(int i=0;i<n;++i){
 		// 	for(int j=0;j<n;++j){
