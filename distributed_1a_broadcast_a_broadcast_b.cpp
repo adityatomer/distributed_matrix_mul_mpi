@@ -275,7 +275,6 @@ int main(int argc, char *argv[]){
 				rankTemp++;
 			}
 		}
-
 		// MPI_Wait(&request_A[0],&status);
 		// MPI_Wait(&request_B[0],&status);
 		// MPI_Wait(&request_C[0],&status);
