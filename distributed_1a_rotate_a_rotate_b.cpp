@@ -211,8 +211,15 @@ int main(int argc, char *argv[]){
 		int rank_local=1;
 		for (int i=0; i<n; i++) {
 			for (int j=0; j<n; j++){
-				A[i][j] = (i*j+1) % 10;
-				B[i][j] = (i*j+1) % 10;
+				A[i][j] = getRandomNumber();
+				if(getRandomNumber()%2 ==0){
+				A[i][j] *= -1;
+				}
+
+				B[i][j] =getRandomNumber();
+				if(getRandomNumber()%2 ==0){
+				B[i][j] *= -1;
+				}
 				C[i][j] = 0;
 			}
 		}
