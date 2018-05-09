@@ -13,10 +13,9 @@
 #include <ctime>
 #include <stdlib.h>
 #define mod 10
-typedef int64_t __int64;
 using namespace std;
 typedef std::vector<std::vector<int> > Matrix;
-
+typedef int64_t __int64;
 Matrix getSmallerMatrix(Matrix m, int row_st,int row_end, int col_st, int col_end){
 	Matrix newm;
 	for(int i=0;i<row_end-row_st;++i){
@@ -27,7 +26,6 @@ Matrix getSmallerMatrix(Matrix m, int row_st,int row_end, int col_st, int col_en
 	}
 	return newm;
 }
-
 //0 for Head
 //1 for Tail
 time_t g_seed;
@@ -35,12 +33,10 @@ void seedRandomNumber(){
 	srand(time(NULL));
 	g_seed=rand();
 }
-
 inline uint64_t getRandomNumber() { 
 	g_seed = (214013*g_seed+2531011); 
 	return ((g_seed>>16)&0x7FFF)%mod; 
 } 
-
 
 Matrix getMatrixOfSizeR(int n, bool isRandom=true){
 	Matrix A;
@@ -127,16 +123,15 @@ int free2DIntArr(int ***array) {
 
     return 0;
 }
-
-void copy2DMatrix(int **mat, int **local, int row, int col){
-	for(int i=0;i<row;++i){
-		for(int j=0;j<col;++j){
-			local[i][j]=mat[i][j];
-		}
+void print(int **mat, int n, int rank){
+	cout<<"printprint rank: "<<rank<<" "<<"\n";
+	for(int i=0;i<n;++i){
+		for(int j=0;j<n;++j){
+			cout<<mat[i][j]<<" ";
+		}cout<<"\n";
 	}
 }
-
-void mm_broadcast_A_broadcast_B(int **c, int **a, int **b, int myrank, int world_size, int blocksize, MPI_Comm COL_COMM_WORLD, MPI_Comm ROW_COMM_WORLD){
+void mm_rotate_A_broadcast_B(int **c, int **a, int **b, int myrank, int world_size, int blocksize, MPI_Comm COL_COMM_WORLD){
 
 	MPI_Status status;
 	int tag=123456;
@@ -144,29 +139,21 @@ void mm_broadcast_A_broadcast_B(int **c, int **a, int **b, int myrank, int world
 
 	int row=myrank/sqrtP;
 	int col=myrank%sqrtP;
+	int *local_buffer_pntr;
 	int **local_allocated_buffer;
-	int **local_allocated_buffer_a;
 	malloc2DInt(&local_allocated_buffer, blocksize, blocksize);
-	malloc2DInt(&local_allocated_buffer_a, blocksize, blocksize);
+	
 	for(int l=1;l<=sqrtP;++l){
-		int k=(l-1);
-		if(k==col){
-			// copy2DMatrix(a,local_allocated_buffer_a,blocksize,blocksize);
-			local_allocated_buffer_a =a ;
-		}
+		int k=(col+l-1)%sqrtP;
 		if(k==row){
-			// local_buffer_pntr=&(b[0][0]);
-			// copy2DMatrix(b,local_allocated_buffer,blocksize,blocksize);
 			local_allocated_buffer=b;
 		}
-		MPI_Bcast(&(local_allocated_buffer_a[0][0]), blocksize*blocksize, MPI_INT, k, ROW_COMM_WORLD);
 
 		MPI_Bcast(&(local_allocated_buffer[0][0]), blocksize*blocksize, MPI_INT, k, COL_COMM_WORLD);
-
-		performMatMul(c,local_allocated_buffer_a,local_allocated_buffer,blocksize);
-		// if(l < sqrtP){
-		// 	MPI_Sendrecv_replace(&(a[0][0]),blocksize*blocksize, MPI_INT,(row*sqrtP+(sqrtP+col-1)%sqrtP),tag, (row*sqrtP+(sqrtP+col+1)%sqrtP) ,tag,MPI_COMM_WORLD,&status);
-		// }
+		performMatMul(c,a,local_allocated_buffer,blocksize);
+		if(l < sqrtP){
+			MPI_Sendrecv_replace(&(a[0][0]),blocksize*blocksize, MPI_INT,(row*sqrtP+(sqrtP+col-1)%sqrtP),tag, (row*sqrtP+(sqrtP+col+1)%sqrtP) ,tag,MPI_COMM_WORLD,&status);
+		}
 	}
 }
 
@@ -180,9 +167,7 @@ int main(int argc, char *argv[]){
     MPI_Comm_rank(MPI_COMM_WORLD, &myrank);	
 	int sqrtP=sqrt(world_size);
 	MPI_Comm COL_COMM_WORLD;
-	MPI_Comm ROW_COMM_WORLD;
 	MPI_Comm_split(MPI_COMM_WORLD, myrank % sqrtP, myrank, &COL_COMM_WORLD);
-	MPI_Comm_split(MPI_COMM_WORLD, sqrtP + myrank/sqrtP, myrank, &ROW_COMM_WORLD);
 	int blockcount = sqrt(world_size);
 	int blocksize  = n/blockcount;
 	int sendcount[world_size];
@@ -259,9 +244,12 @@ int main(int argc, char *argv[]){
 	for (int p=0; p<world_size; p++) {
 		MPI_Barrier(MPI_COMM_WORLD);
 	}
-	// performMatMul(smallMat_C,smallMat_A, smallMat_B, myrank,blocksize);
-	mm_broadcast_A_broadcast_B(smallMat_C,smallMat_A, smallMat_B, myrank, world_size, blocksize,COL_COMM_WORLD,ROW_COMM_WORLD);
 
+	print(smallMat_B, blocksize, myrank);
+	cout<<"*************\n";
+	// performMatMul(smallMat_C,smallMat_A, smallMat_B, myrank,blocksize);
+	mm_rotate_A_broadcast_B(smallMat_C,smallMat_A, smallMat_B, myrank, world_size, blocksize,COL_COMM_WORLD);
+	print(smallMat_C, blocksize, myrank);
 	MPI_Gatherv(&(smallMat_C[0][0]), blocksize*blocksize,  MPI_INT, globalptr_C, sendcount, 
 		displaycount, smallMatType,0, MPI_COMM_WORLD);
 	__int64 now1 = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();

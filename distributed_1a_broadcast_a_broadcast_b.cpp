@@ -117,7 +117,7 @@ void allocate2dVector(){
 
 
 
-void performMatMul(int **C,int **A, int **B, int myrank, int n){
+void performMatMul(int **C,int **A, int **B, int n){
 	for (int i = 0; i < n; i++)
     	{
         	for (int k = 0; k < n; k++)
@@ -146,56 +146,30 @@ void print(int **mat, int n, int rank){
 	}
 }
 
-void mm_broadcast_A_broadcast_B(int **c, int **a, int **b, int myrank, int processor, int blocksize,MPI_Comm comm,MPI_Comm COL_COMM_WORLD, MPI_Comm ROW_COMM_WORLD){
+void mm_broadcast_A_broadcast_B(int **c, int **a, int **b, int myrank, int world_size, int blocksize,MPI_Comm comm,MPI_Comm COL_COMM_WORLD, MPI_Comm ROW_COMM_WORLD){
 	MPI_Status status;
 	int tag=123456;
-	int sqrtP=sqrt(processor);
+	int sqrtP=sqrt(world_size);
 
 	int row=myrank/sqrtP;
 	int col=myrank%sqrtP;
-
-	int dest_A_row=row;
-	int dest_A_col=(sqrtP+col-row)%sqrtP;
-	int dest_A_rank=sqrtP*dest_A_row+dest_A_col;
-
-	int src_A_row=row;
-	int src_A_col=(-sqrtP+col+row)%sqrtP;
-	int src_A_rank=((myrank+row) % sqrtP) + (row*sqrtP);
-
-	int dest_B_row=(sqrtP+col-row)%sqrtP;
-	int dest_B_col=col;
-	int dest_B_rank=sqrtP*((sqrtP+row-col)%sqrtP)+col;
-	int src_B_rank= sqrtP*((row+col)%sqrtP)+col;
-
-	MPI_Sendrecv_replace(&(a[0][0]),blocksize*blocksize, MPI_INT,dest_A_rank,tag,src_A_rank,tag,comm,&status);
-	MPI_Sendrecv_replace(&(b[0][0]),blocksize*blocksize, MPI_INT,dest_B_rank,tag,src_B_rank,tag,comm,&status);
-	/*
-	for(int l=1;l<=sqrtP;++l){
-		performMatMul(c,a,b, myrank,blocksize);
-		if(l < sqrtP){
-			MPI_Sendrecv_replace(&(a[0][0]),blocksize*blocksize, MPI_INT,(row*sqrtP+(sqrtP+col-1)%sqrtP),tag, (row*sqrtP+(sqrtP+col+1)%sqrtP) ,tag,comm,&status);
-			MPI_Sendrecv_replace(&(b[0][0]),blocksize*blocksize, MPI_INT,(col+sqrtP*((sqrtP+row-1)%sqrtP)),tag, (col+sqrtP*((sqrtP+row+1)%sqrtP)) ,tag,comm,&status);
-		}
-	}*/
 	int **local_allocated_buffer;
-	malloc2DInt(&local_allocated_buffer, blocksize, blocksize);
 	int **local_allocated_buffer_a;
+	malloc2DInt(&local_allocated_buffer, blocksize, blocksize);
 	malloc2DInt(&local_allocated_buffer_a, blocksize, blocksize);
 	for(int l=1;l<=sqrtP;++l){
 		int k=(l-1);
 		if(k==col){
-			/*copy2DMatrix(a,local_allocated_buffer_a,blocksize,blocksize);*/
 			local_allocated_buffer_a =a ;
 		}
-		MPI_Bcast(&(local_allocated_buffer_a[0][0]), blocksize*blocksize, MPI_INT, k, ROW_COMM_WORLD);
 		if(k==row){
-			/* copy2DMatrix(b,local_allocated_buffer,blocksize,blocksize);*/
 			local_allocated_buffer=b;
 		}
+		MPI_Bcast(&(local_allocated_buffer_a[0][0]), blocksize*blocksize, MPI_INT, k, ROW_COMM_WORLD);
 
 		MPI_Bcast(&(local_allocated_buffer[0][0]), blocksize*blocksize, MPI_INT, k, COL_COMM_WORLD);
 
-		performMatMul(c,local_allocated_buffer_a,local_allocated_buffer,myrank,blocksize);
+		performMatMul(c,local_allocated_buffer_a,local_allocated_buffer,blocksize);
 	}
 }
 
