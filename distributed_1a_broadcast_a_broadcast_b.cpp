@@ -175,7 +175,7 @@ void mm_broadcast_A_broadcast_B(int **c, int **a, int **b, int myrank, int world
 
 int main(int argc, char *argv[]){
 	seedRandomNumber();
-	int n=atoi(argv[1]);
+	int n=pow(2,atoi(argv[1]));
 	int flag = atoi(argv[2]);
 	int world_size,myrank;
 	MPI_Status status;
@@ -253,10 +253,10 @@ int main(int argc, char *argv[]){
 				smallMat_C=getSmallerMatrix( C,  blocksize, row, row+blocksize,  col,  col+blocksize);
 				// print(smallMat_A, blocksize, myrank);
 				if(rankTemp !=0){	
-				MPI_Send(&(smallMat_A[0][0]), blocksize*blocksize, MPI_INT, rankTemp, tag_A, MPI_COMM_WORLD);
-				MPI_Send(&(smallMat_B[0][0]), blocksize*blocksize, MPI_INT, rankTemp, tag_B, MPI_COMM_WORLD);
-				MPI_Send(&(smallMat_C[0][0]), blocksize*blocksize, MPI_INT, rankTemp, tag_C, MPI_COMM_WORLD);
-			}
+					MPI_Send(&(smallMat_A[0][0]), blocksize*blocksize, MPI_INT, rankTemp, tag_A, MPI_COMM_WORLD);
+					MPI_Send(&(smallMat_B[0][0]), blocksize*blocksize, MPI_INT, rankTemp, tag_B, MPI_COMM_WORLD);
+					MPI_Send(&(smallMat_C[0][0]), blocksize*blocksize, MPI_INT, rankTemp, tag_C, MPI_COMM_WORLD);
+				}
 				rankTemp++;
 			}
 		}
@@ -290,9 +290,6 @@ int main(int argc, char *argv[]){
 		MPI_Recv(&(smallMat_B[0][0]), blocksize*blocksize, MPI_INT, 0, tag_B, MPI_COMM_WORLD,&status1[1]);
 		MPI_Recv(&(smallMat_C[0][0]), blocksize*blocksize, MPI_INT, 0, tag_C, MPI_COMM_WORLD,&status1[2]);
 		
-		// MPI_Wait(&request_recv_matrices[0], &status);
-		// MPI_Wait(&request_recv_matrices[1], &status);
-		// MPI_Wait(&request_recv_matrices[2], &status);
 
 		// print(smallMat_A, blocksize, myrank);
 		// cout<<"*************HHHHHHHHH\n";
@@ -300,12 +297,6 @@ int main(int argc, char *argv[]){
 		// cout<<"*************\n";
 		// print(smallMat_C, blocksize, myrank);
 	}
-	// cout<<"running multiply for rank ::"<<myrank<<"\n";
-	// return 0;
-	// performMatMul(smallMat_C,smallMat_A, smallMat_B, myrank,blocksize);
-	// if(myrank==0){
-	// 	mm_broadcast_A_broadcast_B(small_C, small_A, small_B, myrank, world_size, blocksize,MPI_COMM_WORLD,COL_COMM_WORLD,ROW_COMM_WORLD);
-	// }else{
 	mm_broadcast_A_broadcast_B(smallMat_C, smallMat_A, smallMat_B, myrank, world_size, blocksize,MPI_COMM_WORLD,COL_COMM_WORLD,ROW_COMM_WORLD);
 	// }
 	// print(smallMat_C,blocksize,myrank);
@@ -313,9 +304,7 @@ int main(int argc, char *argv[]){
 	int row=myrank/sqrtP;
 	int col=myrank%sqrtP;
 	MPI_Request request_send;
-	// if(myrank==0){
-	// 	MPI_Isend(&(small_C[0][0]), blocksize*blocksize, MPI_INT, 0, tag_C, MPI_COMM_WORLD, &request_send);
-	// }else{
+	
 	if(myrank !=0){
 	MPI_Send(&(smallMat_C[0][0]), blocksize*blocksize, MPI_INT, 0, tag_C, MPI_COMM_WORLD);
 	}	
@@ -346,53 +335,21 @@ int main(int argc, char *argv[]){
 				
 			}
 		}
-		// return 0;
 		__int64 now1 = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		float timeTaken=float (now1- now);
-		// cnt=0;
-		// for(int i=0;i<sqrtP;++i){
-		// 	for(int j=0;j<sqrtP;++j){
-		// 		MPI_Wait(&request_recv[cnt], &status);
-		// 		print(smallMat_C_received, blocksize, myrank);
-		// 		mergeMatrix(C, smallMat_C_received, row, col, blocksize);
-		// 		cnt++;
-		// 	}
-		// }
 		cout<<"****************************\n\n";
 		cout<<"Matrix multiplication done:: C =>\n";
 		if(flag==1){
 			print(C, n, myrank);
 		}
 		std::cout<<"time taken: "<<timeTaken<<"\n";
-		// cout<<"Printing Matrix C\n";
-		// for(int i=0;i<n;++i){
-		// 	for(int j=0;j<n;++j){
-		// 		cout<<C[i][j]<<" ";
-		// 	}cout<<"\n";
-		// }
+		if(sqrtP!=1){
 		free2DIntArr(&smallMat_C_received);
+		}
 	}
-
 	free2DIntArr(&smallMat_A);
 	free2DIntArr(&smallMat_B);
 	free2DIntArr(&smallMat_C);
-	
-	// free2DIntArr(&A);
-	// free2DIntArr(&B);
-	// free2DIntArr(&C);
-	// free2DIntArr(&smallMat_B);
-	// free2DIntArr(&smallMat_C);
-	// if(myrank==0){
-	// 	for (int i=0; i<n; i++) {
-	// 		for (int j=0; j<n; j++){	
-	// 			cout<<C[i][j]<<" ";
-	// 		}
-	// 		cout<<"\n";
-	// 	}
-	// 	free2DIntArr(&A);
-	// 	free2DIntArr(&B);
-	// 	free2DIntArr(&C);
-	// }		
 	
 	MPI_Finalize();	
 
