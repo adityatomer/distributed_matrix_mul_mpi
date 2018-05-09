@@ -13,29 +13,22 @@
 #include <ctime>
 #include <stdlib.h>
 #define mod 10
-typedef int64_t __int64;
+// typedef int64_t __int64;
 using namespace std;
 typedef std::vector<std::vector<int> > Matrix;
 
 int malloc2DInt(int ***array, int row, int col) { 
-  
      int *pointer = (int *)malloc(row*col*sizeof(int));
      if (!pointer) return -1;
- 
-
      (*array) = (int **)malloc(row*sizeof(int*));
      if (!(*array)) {
         free(pointer);
         return -1;
      }
- 
      for (int i=0; i<row; i++)
         (*array)[i] = &(pointer[i*col]);
- 
      return 0;
 }
-
-
 int ** getSmallerMatrix(int **m, int n,int row_st,int row_end, int col_st, int col_end){
 	int **newm; 
 	malloc2DInt(&newm, n, n);
@@ -46,7 +39,6 @@ int ** getSmallerMatrix(int **m, int n,int row_st,int row_end, int col_st, int c
 	}
 	return newm;
 }
-
 void mergeMatrix(int **mat, int **smallMat, int small_n_row, int small_n_col, int small_n_size){
 	// **mergeMatr(int **mat, int **smallMat, int n, int small_n_row, int small_n_col, int small_n_size)
 	for(int i=0; i<small_n_size; ++i){
@@ -55,9 +47,6 @@ void mergeMatrix(int **mat, int **smallMat, int small_n_row, int small_n_col, in
 		}
 	}
 }
-
-//0 for Head
-//1 for Tail
 time_t g_seed;
 void seedRandomNumber(){
 	srand(time(NULL));

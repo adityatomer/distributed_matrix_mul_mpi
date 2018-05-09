@@ -15,7 +15,7 @@
 #define mod 10
 using namespace std;
 typedef std::vector<std::vector<int> > Matrix;
-typedef int64_t __int64;
+// typedef int64_t __int64;
 Matrix getSmallerMatrix(Matrix m, int row_st,int row_end, int col_st, int col_end){
 	Matrix newm;
 	for(int i=0;i<row_end-row_st;++i){

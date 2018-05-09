@@ -13,7 +13,7 @@
 #include <ctime>
 #include <stdlib.h>
 #define mod 10
-typedef int64_t __int64;
+// typedef int64_t __int64;
 using namespace std;
 typedef std::vector<std::vector<int> > Matrix;
 

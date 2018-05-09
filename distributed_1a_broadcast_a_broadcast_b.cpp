@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #define mod 100
 using namespace std;
-typedef int64_t __int64;
+// typedef int64_t __int64;
 typedef std::vector<std::vector<int> > Matrix;
 
 int malloc2DInt(int ***array, int row, int col) { 
