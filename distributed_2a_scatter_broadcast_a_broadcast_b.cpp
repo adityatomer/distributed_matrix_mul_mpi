@@ -3,8 +3,20 @@
 #include<vector>
 #include<mpi.h>
 #include<cmath>
-#define mod 10
+#include<chrono>
+#include<stdio.h>
+#include<chrono>
+#include<iostream>
+#include<math.h>
+#include<time.h>
+#include<array>
+#include <ctime>
+#include <stdlib.h>
+#include <cilk/cilk.h>
+#include <cilk/cilk_api.h>
+#define mod 100
 using namespace std;
+typedef int64_t __int64;
 typedef std::vector<std::vector<int> > Matrix;
 
 Matrix getSmallerMatrix(Matrix m, int row_st,int row_end, int col_st, int col_end){
@@ -111,16 +123,16 @@ void ParRecMM(int **z, int **x, int **y,int z_row,int z_col, int x_row,int x_col
 	if(n==m){
 		return getMul_IKJ(z,x,y,z_row, z_col, x_row, x_col, y_row, y_col,n);
 	}
-	ParRecMM(z, x, y, z_row, z_col, x_row, x_col, y_row, y_col, n/2,m);
-	ParRecMM(z, x, y, z_row, z_col+n/2, x_row, x_col, y_row, y_col+n/2, n/2,m);
-   	ParRecMM(z, x, y, z_row+n/2, z_col, x_row+n/2, x_col, y_row, y_col, n/2,m);
-	ParRecMM(z, x, y, z_row+n/2, z_col+n/2, x_row+n/2, x_col, y_row, y_col+n/2, n/2,m);
-	// cilk_sync;
-	ParRecMM(z, x, y, z_row, z_col, x_row, x_col+n/2, y_row+n/2, y_col, n/2,m);
-	ParRecMM(z, x, y, z_row, z_col+n/2, x_row, x_col+n/2, y_row+n/2, y_col+n/2, n/2,m);
-	ParRecMM(z , x, y, z_row+n/2, z_col, x_row+n/2, x_col+n/2, y_row+n/2, y_col, n/2,m);
-	ParRecMM(z, x, y, z_row+n/2, z_col+n/2, x_row+n/2, x_col+n/2, y_row+n/2, y_col+n/2, n/2,m);
-	// cilk_sync;
+	cilk_spawn ParRecMM(z, x, y, z_row, z_col, x_row, x_col, y_row, y_col, n/2,m);
+	cilk_spawn ParRecMM(z, x, y, z_row, z_col+n/2, x_row, x_col, y_row, y_col+n/2, n/2,m);
+   	cilk_spawn ParRecMM(z, x, y, z_row+n/2, z_col, x_row+n/2, x_col, y_row, y_col, n/2,m);
+	 ParRecMM(z, x, y, z_row+n/2, z_col+n/2, x_row+n/2, x_col, y_row, y_col+n/2, n/2,m);
+	cilk_sync;
+	cilk_spawn ParRecMM(z, x, y, z_row, z_col, x_row, x_col+n/2, y_row+n/2, y_col, n/2,m);
+	cilk_spawn ParRecMM(z, x, y, z_row, z_col+n/2, x_row, x_col+n/2, y_row+n/2, y_col+n/2, n/2,m);
+	cilk_spawn ParRecMM(z , x, y, z_row+n/2, z_col, x_row+n/2, x_col+n/2, y_row+n/2, y_col, n/2,m);
+	 ParRecMM(z, x, y, z_row+n/2, z_col+n/2, x_row+n/2, x_col+n/2, y_row+n/2, y_col+n/2, n/2,m);
+	cilk_sync;
 }
 
 void performMatMul(int **C,int **A, int **B, int n){
@@ -148,6 +160,14 @@ void copy2DMatrix(int **mat, int **local, int row, int col){
 		for(int j=0;j<col;++j){
 			local[i][j]=mat[i][j];
 		}
+	}
+}
+void print(int **mat, int n, int rank){
+	cout<<"printprint rank: "<<rank<<" "<<"\n";
+	for(int i=0;i<n;++i){
+		for(int j=0;j<n;++j){
+			cout<<mat[i][j]<<" ";
+		}cout<<"\n";
 	}
 }
 
@@ -188,7 +208,8 @@ void mm_broadcast_A_broadcast_B(int **c, int **a, int **b, int myrank, int world
 
 int main(int argc, char *argv[]){
 	seedRandomNumber();
-	int n=atoi(argv[1]);
+	int n=pow(2,atoi(argv[1]));
+	int flag = atoi(argv[2]);
 	int world_size,myrank;
 	MPI_Status status;
 	MPI_Init(&argc,&argv);
@@ -212,17 +233,28 @@ int main(int argc, char *argv[]){
 		malloc2DInt(&C, n, n);
 		for (int i=0; i<n; i++) {
 			for (int j=0; j<n; j++){
-				A[i][j] = (i*j+1) % 10;
-				B[i][j] = (i*j+1) % 10;
+				A[i][j] = getRandomNumber();
+				if(getRandomNumber()%2 ==0){
+				A[i][j] *= -1;
+				}
+
+				B[i][j] =getRandomNumber();
+				if(getRandomNumber()%2 ==0){
+				B[i][j] *= -1;
+				}
 				C[i][j] = 0;
 			}
 		}
-		cout<<"A =>\n";
-		for (int i=0; i<n; i++) {
-			for (int j=0; j<n; j++){
-				cout<<A[i][j]<<" ";
+		if(flag==1){
+			for (int i=0; i<n; i++) {
+				for (int j=0; j<n; j++){
+					cout<<A[i][j]<<" ";
+				}
+				cout<<"\n";
 			}
-			cout<<"\n";
+		}
+		if(flag==1){
+			print(B, n, myrank);
 		}
 		/*
 		cout<<"B =>\n";
@@ -241,6 +273,7 @@ int main(int argc, char *argv[]){
 	malloc2DInt(&smallMat_A, blocksize, blocksize);
 	malloc2DInt(&smallMat_B, blocksize, blocksize);
 	malloc2DInt(&smallMat_C, blocksize, blocksize);
+	__int64 now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 	//smallMat.resize(blocksize, std::vector<int>(blocksize,0));
 	MPI_Datatype type, smallMatType;
 	int sizes[2]={n,n};
@@ -278,23 +311,29 @@ int main(int argc, char *argv[]){
 
 	MPI_Gatherv(&(smallMat_C[0][0]), blocksize*blocksize,  MPI_INT, globalptr_C, sendcount, 
 		displaycount, smallMatType,0, MPI_COMM_WORLD);
+	__int64 now1 = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+	float timeTaken=float (now1- now);
 	free2DIntArr(&smallMat_A);
 	free2DIntArr(&smallMat_B);
 	free2DIntArr(&smallMat_C);
 	if(myrank==0){
-		for (int i=0; i<n; i++) {
-			for (int j=0; j<n; j++){	
-				cout<<C[i][j]<<" ";
-			}
-			cout<<"\n";
+		if(flag==1){
+			print(C, n, myrank);
 		}
+		// for (int i=0; i<n; i++) {
+		// 	for (int j=0; j<n; j++){	
+		// 		cout<<C[i][j]<<" ";
+		// 	}
+		// 	cout<<"\n";
+		// }
 		free2DIntArr(&A);
 		free2DIntArr(&B);
 		free2DIntArr(&C);
+		std::cout<<"time taken: "<<timeTaken<<"\n";
 	}		
 	MPI_Type_free(&smallMatType);
 	MPI_Finalize();	
-
+	
 	return 0;
 }
 
