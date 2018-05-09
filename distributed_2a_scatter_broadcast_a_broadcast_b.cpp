@@ -120,7 +120,7 @@ for(int i=0;i<n;++i){
 }
 
 void ParRecMM(int **z, int **x, int **y,int z_row,int z_col, int x_row,int x_col,int y_row,int y_col, int n,int m){
-	if(n==m){
+	if(n==32){
 		return getMul_IKJ(z,x,y,z_row, z_col, x_row, x_col, y_row, y_col,n);
 	}
 	cilk_spawn ParRecMM(z, x, y, z_row, z_col, x_row, x_col, y_row, y_col, n/2,m);
@@ -176,7 +176,7 @@ void mm_broadcast_A_broadcast_B(int **c, int **a, int **b, int myrank, int world
 	MPI_Status status;
 	int tag=123456;
 	int sqrtP=sqrt(world_size);
-
+	__cilkrts_set_param("nworkers", "68");
 	int row=myrank/sqrtP;
 	int col=myrank%sqrtP;
 	int **local_allocated_buffer;
