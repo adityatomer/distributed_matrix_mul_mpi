@@ -13,7 +13,7 @@
 #include <ctime>
 #include <stdlib.h>
 #define mod 10
-// typedef int64_t __int64;
+typedef int64_t __int64;
 using namespace std;
 typedef std::vector<std::vector<int> > Matrix;
 
@@ -187,7 +187,7 @@ int main(int argc, char *argv[]){
 	int n=atoi(argv[1]);
 	int flag = atoi(argv[2]);
 	int world_size,myrank;
-	MPI_Status status;
+	// MPI_Status status;
 	MPI_Init(&argc,&argv);
 	MPI_Comm_size(MPI_COMM_WORLD, &world_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &myrank);	
@@ -274,7 +274,7 @@ int main(int argc, char *argv[]){
 	// return 0;
 
 	MPI_Request request_recv_matrices[3];
-	
+	MPI_Status status[3];
 	int **smallMat_A;
 	int **smallMat_B;
 	int **smallMat_C;
@@ -286,9 +286,9 @@ int main(int argc, char *argv[]){
 	MPI_Irecv(&(smallMat_B[0][0]), blocksize*blocksize, MPI_INT, 0, tag_B, MPI_COMM_WORLD,&request_recv_matrices[1]);
 	MPI_Irecv(&(smallMat_C[0][0]), blocksize*blocksize, MPI_INT, 0, tag_C, MPI_COMM_WORLD,&request_recv_matrices[2]);
 	
-	MPI_Wait(&request_recv_matrices[0], &status);
-	MPI_Wait(&request_recv_matrices[1], &status);
-	MPI_Wait(&request_recv_matrices[2], &status);
+	MPI_Wait(&request_recv_matrices[0], &status[0]);
+	MPI_Wait(&request_recv_matrices[1], &status[1]);
+	MPI_Wait(&request_recv_matrices[2], &status[2]);
 
 	// if(myrank == 0){
 	// cout<<"the code owdwdvcoenfovin";
@@ -318,6 +318,7 @@ int main(int argc, char *argv[]){
 		// MPI_Wait(&request_send,&status);
 		int **smallMat_C_received;
 		MPI_Request request_recv[world_size];
+		MPI_Status status[world_size];
 		int cnt=0;
 		for(int i=0;i<sqrtP;++i){
 			for(int j=0;j<sqrtP;++j){
@@ -325,7 +326,7 @@ int main(int argc, char *argv[]){
 				int col=j*blocksize;
 				malloc2DInt(&smallMat_C_received, blocksize, blocksize);
 				MPI_Irecv(&(smallMat_C_received[0][0]), blocksize*blocksize, MPI_INT, cnt, tag_C, MPI_COMM_WORLD,&request_recv[cnt]);
-				MPI_Wait(&request_recv[cnt], &status);
+				MPI_Wait(&request_recv[cnt], &status[cnt]);
 				
 				// print(smallMat_C,blocksize,myrank);
 				mergeMatrix(C, smallMat_C_received, row, col, blocksize);
