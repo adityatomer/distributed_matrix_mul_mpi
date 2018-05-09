@@ -13,7 +13,7 @@
 #include <ctime>
 #include <stdlib.h>
 #define mod 10
-// typedef int64_t __int64;
+typedef int64_t __int64;
 using namespace std;
 typedef std::vector<std::vector<int> > Matrix;
 
@@ -119,6 +119,14 @@ void performMatMul(int **C,int **A, int **B, int n){
         	}
     	}	
 }
+void print(int **mat, int n, int rank){
+	cout<<"printprint rank: "<<rank<<" "<<"\n";
+	for(int i=0;i<n;++i){
+		for(int j=0;j<n;++j){
+			cout<<mat[i][j]<<" ";
+		}cout<<"\n";
+	}
+}
 
 int free2DIntArr(int ***array) {
     free(&((*array)[0][0]));
@@ -167,6 +175,7 @@ void mm_broadcast_A_broadcast_B(int **c, int **a, int **b, int myrank, int world
 int main(int argc, char *argv[]){
 	seedRandomNumber();
 	int n=atoi(argv[1]);
+	int flag = atoi(argv[2]);
 	int world_size,myrank;
 	MPI_Status status;
 	MPI_Init(&argc,&argv);
@@ -197,17 +206,29 @@ int main(int argc, char *argv[]){
 		malloc2DInt(&C, n, n);
 		for (int i=0; i<n; i++) {
 			for (int j=0; j<n; j++){
-				A[i][j] = (i*j+1) % 10;
-				B[i][j] = (i*j+1) % 10;
+				A[i][j] = getRandomNumber();
+				if(getRandomNumber()%2 ==0){
+				A[i][j] *= -1;
+				}
+
+				B[i][j] =getRandomNumber();
+				if(getRandomNumber()%2 ==0){
+				B[i][j] *= -1;
+				}
 				C[i][j] = 0;
 			}
 		}
 		cout<<"A =>\n";
-		for (int i=0; i<n; i++) {
-			for (int j=0; j<n; j++){
-				cout<<A[i][j]<<" ";
+		if(flag==1){
+			for (int i=0; i<n; i++) {
+				for (int j=0; j<n; j++){
+					cout<<A[i][j]<<" ";
+				}
+				cout<<"\n";
 			}
-			cout<<"\n";
+		}
+		if(flag==1){
+			print(B, n, myrank);
 		}
 		/*
 		cout<<"B =>\n";
@@ -218,7 +239,7 @@ int main(int argc, char *argv[]){
 			cout<<"\n";
 		}
 		*/
-		cout<<"world_size: "<<world_size<<" "<<" blockcount: "<<blockcount<<" blocksize: "<<blocksize<<endl;
+		// cout<<"world_size: "<<world_size<<" "<<" blockcount: "<<blockcount<<" blocksize: "<<blocksize<<endl;
 	}
 	
 	//smallMat.resize(blocksize, std::vector<int>(blocksize,0));
@@ -264,12 +285,15 @@ int main(int argc, char *argv[]){
 	free2DIntArr(&smallMat_B);
 	free2DIntArr(&smallMat_C);
 	if(myrank==0){
-		for (int i=0; i<n; i++) {
-			for (int j=0; j<n; j++){	
-				cout<<C[i][j]<<" ";
-			}
-			cout<<"\n";
+		if(flag==1){
+			print(C, n, myrank);
 		}
+		// for (int i=0; i<n; i++) {
+		// 	for (int j=0; j<n; j++){	
+		// 		cout<<C[i][j]<<" ";
+		// 	}
+		// 	cout<<"\n";
+		// }
 		free2DIntArr(&A);
 		free2DIntArr(&B);
 		free2DIntArr(&C);
