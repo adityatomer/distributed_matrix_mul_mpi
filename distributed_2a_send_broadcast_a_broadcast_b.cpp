@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <cilk/cilk.h>
 #include <cilk/cilk_api.h>
-#define mod 100
+#define mod 10
 using namespace std;
 // typedef int64_t __int64;
 typedef std::vector<std::vector<int> > Matrix;
@@ -197,7 +197,7 @@ void mm_broadcast_A_broadcast_B(int **c, int **a, int **b, int myrank, int world
 		MPI_Bcast(&(local_allocated_buffer[0][0]), blocksize*blocksize, MPI_INT, k, COL_COMM_WORLD);
 
 		// performMatMul(c,local_allocated_buffer_a,local_allocated_buffer,blocksize);
-		ParRecMM(c,local_allocated_buffer_a,local_allocated_buffer,0,0,0,0,0,0,blocksize,2	);
+		ParRecMM(c,local_allocated_buffer_a,local_allocated_buffer,0,0,0,0,0,0,blocksize,32	);
 	}
 }
 
@@ -205,6 +205,7 @@ int main(int argc, char *argv[]){
 	seedRandomNumber();
 	int n=pow(2,atoi(argv[1]));
 	int flag = atoi(argv[2]);
+	__cilkrts_set_param("nworkers", "68");
 	int world_size,myrank;
 	MPI_Status status;
 	MPI_Init(&argc,&argv);

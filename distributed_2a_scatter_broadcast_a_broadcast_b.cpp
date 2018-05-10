@@ -125,6 +125,7 @@ void ParRecMM(int **z, int **x, int **y,int z_row,int z_col, int x_row,int x_col
 	}
 	cilk_spawn ParRecMM(z, x, y, z_row, z_col, x_row, x_col, y_row, y_col, n/2,m);
 	cilk_spawn ParRecMM(z, x, y, z_row, z_col+n/2, x_row, x_col, y_row, y_col+n/2, n/2,m);
+
    	cilk_spawn ParRecMM(z, x, y, z_row+n/2, z_col, x_row+n/2, x_col, y_row, y_col, n/2,m);
 	ParRecMM(z, x, y, z_row+n/2, z_col+n/2, x_row+n/2, x_col, y_row, y_col+n/2, n/2,m);
 	cilk_sync;
@@ -199,7 +200,7 @@ void mm_broadcast_A_broadcast_B(int **c, int **a, int **b, int myrank, int world
 		MPI_Bcast(&(local_allocated_buffer[0][0]), blocksize*blocksize, MPI_INT, k, COL_COMM_WORLD);
 
 		// performMatMul(c,local_allocated_buffer_a,local_allocated_buffer,blocksize);
-		ParRecMM(c,local_allocated_buffer_a,local_allocated_buffer,0,0,0,0,0,0,blocksize,2	);
+		ParRecMM(c,local_allocated_buffer_a,local_allocated_buffer,0,0,0,0,0,0,blocksize,32	);
 		// if(l < sqrtP){
 		// 	MPI_Sendrecv_replace(&(a[0][0]),blocksize*blocksize, MPI_INT,(row*sqrtP+(sqrtP+col-1)%sqrtP),tag, (row*sqrtP+(sqrtP+col+1)%sqrtP) ,tag,MPI_COMM_WORLD,&status);
 		// }
@@ -215,7 +216,8 @@ int main(int argc, char *argv[]){
 	MPI_Init(&argc,&argv);
 	MPI_Comm_size(MPI_COMM_WORLD, &world_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &myrank);	
-	int sqrtP=sqrt(world_size);
+__cilkrts_set_param("nworkers", "68");	
+int sqrtP=sqrt(world_size);
 	MPI_Comm COL_COMM_WORLD;
 	MPI_Comm ROW_COMM_WORLD;
 	MPI_Comm_split(MPI_COMM_WORLD, myrank % sqrtP, myrank, &COL_COMM_WORLD);

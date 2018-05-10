@@ -1,4 +1,4 @@
-CC=mpic++
+CC=mpicc
 CFLAGS=-std=c++11	
 
 all:
