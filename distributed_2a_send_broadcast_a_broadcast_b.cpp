@@ -11,9 +11,9 @@
 #include<time.h>
 #include<array>
 #include <ctime>
-#include <cilk/cilk.h>
-#include <cilk/cilk_api.h>
 #include <stdlib.h>
+#include <cilk/cilk.h>
+#include <cilk/cilk_ap.h>
 #define mod 100
 using namespace std;
 typedef int64_t __int64;
@@ -49,33 +49,6 @@ int ** getSmallerMatrix(int **m, int n,int row_st,int row_end, int col_st, int c
 	return newm;
 }
 
-void getMul_IKJ(int **z,int **x, int **y,int z_row,int z_col, int x_row,int x_col,int y_row,int y_col, int n){
-for(int i=0;i<n;++i){
-		for(int k=0;k<n;++k){
-			for(int j=0;j<n;++j){
-				z[z_row+i][z_col+j]+=x[x_row+i][x_col+k]*y[y_row+k][y_col+j];
-			}
-		}
-	}
-}
-
-void ParRecMM(int **z, int **x, int **y,int z_row,int z_col, int x_row,int x_col,int y_row,int y_col, int n,int m){
-	if(n==32){
-		return getMul_IKJ(z,x,y,z_row, z_col, x_row, x_col, y_row, y_col,n);
-	}
-	cilk_spawn ParRecMM(z, x, y, z_row, z_col, x_row, x_col, y_row, y_col, n/2,m);
-	cilk_spawn ParRecMM(z, x, y, z_row, z_col+n/2, x_row, x_col, y_row, y_col+n/2, n/2,m);
-   	cilk_spawn ParRecMM(z, x, y, z_row+n/2, z_col, x_row+n/2, x_col, y_row, y_col, n/2,m);
-	ParRecMM(z, x, y, z_row+n/2, z_col+n/2, x_row+n/2, x_col, y_row, y_col+n/2, n/2,m);
-	cilk_sync;
-	cilk_spawn ParRecMM(z, x, y, z_row, z_col, x_row, x_col+n/2, y_row+n/2, y_col, n/2,m);
-	cilk_spawn ParRecMM(z, x, y, z_row, z_col+n/2, x_row, x_col+n/2, y_row+n/2, y_col+n/2, n/2,m);
-	cilk_spawn ParRecMM(z , x, y, z_row+n/2, z_col, x_row+n/2, x_col+n/2, y_row+n/2, y_col, n/2,m);
-	ParRecMM(z, x, y, z_row+n/2, z_col+n/2, x_row+n/2, x_col+n/2, y_row+n/2, y_col+n/2, n/2,m);
-	cilk_sync;
-}
-
-
 void mergeMatrix(int **mat, int **smallMat, int small_n_row, int small_n_col, int small_n_size){
 	for(int i=0; i<small_n_size; ++i){
 		for(int j=0; j<small_n_size; ++j){
@@ -110,6 +83,31 @@ Matrix getMatrixOfSizeR(int n, bool isRandom=true){
 		}
 	}
 	return A;
+}
+void getMul_IKJ(int **z,int **x, int **y,int z_row,int z_col, int x_row,int x_col,int y_row,int y_col, int n){
+for(int i=0;i<n;++i){
+		for(int k=0;k<n;++k){
+			for(int j=0;j<n;++j){
+				z[z_row+i][z_col+j]+=x[x_row+i][x_col+k]*y[y_row+k][y_col+j];
+			}
+		}
+	}
+}
+
+void ParRecMM(int **z, int **x, int **y,int z_row,int z_col, int x_row,int x_col,int y_row,int y_col, int n,int m){
+	if(n==m){
+		return getMul_IKJ(z,x,y,z_row, z_col, x_row, x_col, y_row, y_col,n);
+	}
+	cilk_spawn ParRecMM(z, x, y, z_row, z_col, x_row, x_col, y_row, y_col, n/2,m);
+	cilk_spawn ParRecMM(z, x, y, z_row, z_col+n/2, x_row, x_col, y_row, y_col+n/2, n/2,m);
+   	cilk_spawn ParRecMM(z, x, y, z_row+n/2, z_col, x_row+n/2, x_col, y_row, y_col, n/2,m);
+	ParRecMM(z, x, y, z_row+n/2, z_col+n/2, x_row+n/2, x_col, y_row, y_col+n/2, n/2,m);
+	cilk_sync;
+	cilk_spawn ParRecMM(z, x, y, z_row, z_col, x_row, x_col+n/2, y_row+n/2, y_col, n/2,m);
+	cilk_spawn ParRecMM(z, x, y, z_row, z_col+n/2, x_row, x_col+n/2, y_row+n/2, y_col+n/2, n/2,m);
+	cilk_spawn ParRecMM(z , x, y, z_row+n/2, z_col, x_row+n/2, x_col+n/2, y_row+n/2, y_col, n/2,m);
+	ParRecMM(z, x, y, z_row+n/2, z_col+n/2, x_row+n/2, x_col+n/2, y_row+n/2, y_col+n/2, n/2,m);
+	cilk_sync;
 }
 
 void print(Matrix A){
@@ -179,7 +177,7 @@ void mm_broadcast_A_broadcast_B(int **c, int **a, int **b, int myrank, int world
 	MPI_Status status;
 	int tag=123456;
 	int sqrtP=sqrt(world_size);
-	__cilkrts_set_param("nworkers", "68");
+
 	int row=myrank/sqrtP;
 	int col=myrank%sqrtP;
 	int **local_allocated_buffer;
@@ -198,6 +196,7 @@ void mm_broadcast_A_broadcast_B(int **c, int **a, int **b, int myrank, int world
 
 		MPI_Bcast(&(local_allocated_buffer[0][0]), blocksize*blocksize, MPI_INT, k, COL_COMM_WORLD);
 
+		// performMatMul(c,local_allocated_buffer_a,local_allocated_buffer,blocksize);
 		ParRecMM(c,local_allocated_buffer_a,local_allocated_buffer,0,0,0,0,0,0,blocksize,2	);
 	}
 }
